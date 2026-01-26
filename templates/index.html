@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Факт продаж</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        header: '#E6E6E6', // Light gray background
+                        plan: '#F2F2F2',    // Column header bg
+                        border: '#000000',  // Black border
+                        region: '#EBF1DE',  // Region column bg (Greenish tint)
+                        highlight: '#FFFF00', // Yellow
+                    },
+                    fontFamily: {
+                        sans: ['Arimo', 'Arial', 'sans-serif'],
+                    },
+                    fontSize: {
+                        'xs': '0.7rem',
+                        'sm': '0.8rem',
+                        'base': '0.9rem'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FFFFFF;
+            color: #000;
+            font-family: 'Arimo', sans-serif;
+            padding: 20px;
+        }
+
+        /* Excel Grid Styling */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+        }
+
+        /* Thick Header Border */
+        .thick-border {
+            border: 2px solid #000 !important;
+        }
+
+        .thick-outline {
+            border: 2px solid #000;
+        }
+
+        th {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #E6E6E6;
+        }
+
+        td {
+            border: 1px solid #000;
+            padding: 3px 6px;
+            text-align: right;
+        }
+
+        /* Header Colors */
+        .color-header-red {
+            color: red;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .color-header-rev {
+            background-color: #DAEEF3;
+        }
+
+        /* Light Blue */
+        .color-header-gp {
+            background-color: #FDE9D9;
+        }
+
+        /* Light Orange */
+        .color-header-resale {
+            background-color: #DDD9C4;
+        }
+
+        /* Beige */
+
+        .bg-region {
+            background-color: #DCE6F1;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        /* Conditional Formatting Classes */
+        .pct-green {
+            background-color: #C6EFCE;
+            color: #006100;
+            font-weight: bold;
+        }
+
+        .pct-orange {
+            background-color: #FFEB9C;
+            color: #9C5700;
+            font-weight: bold;
+        }
+
+        .pct-red {
+            background-color: #FFC7CE;
+            color: #9C0006;
+            font-weight: bold;
+        }
+
+        /* Dynamics Block */
+        .dyn-box {
+            background-color: #EBF1DE;
+            padding: 10px;
+            border: 1px solid #ddd;
+            width: fit-content;
+        }
+
+        .dyn-val-green {
+            color: #008000;
+            font-weight: bold;
+        }
+
+        .dyn-val-red {
+            color: #FF0000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-white">
+
+    <!-- HEADER BLOCK -->
+    <div class="flex justify-between items-center mb-4">
+        <div class="text-xl font-bold">
+            <span class="color-header-red">Факт продаж за <span id="report-date">...</span></span>
+        </div>
+        <div class="text-xl font-bold text-red-600">на <span id="report-hour">...</span>:00</div>
+        <div class="font-bold">со стадии 4 и выше</div>
+    </div>
+
+    <!-- TABLE 1: REVENUE -->
+    <div class="thick-outline mb-6">
+        <table>
+            <thead>
+                <tr>
+                    <th class="bg-region w-48">Регион</th>
+                    <th colspan="3" class="color-header-rev">ВЫРУЧКА, РУБ.</th>
+                    <th colspan="3" class="color-header-gp">ГП, РУБ.</th>
+                    <th colspan="3" class="color-header-resale">ПЕРЕКУП, РУБ.</th>
+                </tr>
+                <tr>
+                    <th class="bg-region"></th>
+                    <th>План на <span class="hour-txt">14:00</span></th>
+                    <th>Факт на <span class="hour-txt">14:00</span></th>
+                    <th>%</th>
+                    <th>План на <span class="hour-txt">14:00</span></th>
+                    <th>Факт на <span class="hour-txt">14:00</span></th>
+                    <th>%</th>
+                    <th>План на <span class="hour-txt">14:00</span></th>
+                    <th>Факт на <span class="hour-txt">14:00</span></th>
+                    <th>%</th>
+                </tr>
+            </thead>
+            <tbody id="table-1"></tbody>
+        </table>
+    </div>
+
+    <!-- TABLE 2: GLOVES -->
+    <div class="thick-outline mb-6">
+        <div class="flex justify-end font-bold pr-2 bg-white text-xs text-blue-800 italic">ДОЛЯ ПЕРЕКУПА В ОБЩЕЙ ВЫРУЧКЕ
+            <span id="resale-share">...%</span></div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="bg-region w-48">Регион</th>
+                    <th colspan="3" class="bg-gray-100">ПЕРЧАТКИ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">ОБЛИВ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">ВАФЛЯ, ШТ.</th>
+                </tr>
+                <tr>
+                    <th class="bg-region"></th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                </tr>
+            </thead>
+            <tbody id="table-2"></tbody>
+        </table>
+    </div>
+
+    <!-- TABLE 3: RAGS -->
+    <div class="thick-outline mb-6">
+        <table>
+            <thead>
+                <tr>
+                    <th class="bg-region w-48">Регион</th>
+                    <th colspan="3" class="bg-gray-100">ВЕТОШЬ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">РУКАВИЦЫ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">СТРЕЙЧ, ШТ.</th>
+                </tr>
+                <tr>
+                    <th class="bg-region"></th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                </tr>
+            </thead>
+            <tbody id="table-3"></tbody>
+        </table>
+    </div>
+
+    <!-- TABLE 4: BAGS/CHINA -->
+    <div class="thick-outline mb-6">
+        <table>
+            <thead>
+                <tr>
+                    <th class="bg-region w-48">Регион</th>
+                    <th colspan="3" class="bg-gray-100">МЕШКИ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">КИТАЙСКИЕ ПЕРЧАТКИ, ШТ.</th>
+                    <th colspan="3" class="bg-gray-100">КИТАЙСКИЕ ПЕРЧАТКИ, РУБ.</th>
+                </tr>
+                <tr>
+                    <th class="bg-region"></th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                    <th>План</th>
+                    <th>Факт</th>
+                    <th>%</th>
+                </tr>
+            </thead>
+            <tbody id="table-4"></tbody>
+        </table>
+    </div>
+
+    <!-- DYNAMICS BLOCK -->
+    <div class="dyn-box mt-8">
+        <h3 class="font-bold mb-2">Динамика к <span id="prev-hour">9:00</span> вчерашнего дня</h3>
+        <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm font-bold">
+            <div>Выручка</div>
+            <div id="dyn-rev" class="text-right">...</div>
+
+            <div>Ветошь</div>
+            <div id="dyn-vetosh" class="text-right">...</div>
+
+            <div>Перекуп</div>
+            <div id="dyn-resale" class="text-right">...</div>
+        </div>
+    </div>
+
+    <script>
+        const fmt = (n) => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+
+        function getPctClass(pct) {
+            if (pct === 0) return '';
+            if (pct < 50) return 'pct-red';
+            if (pct < 85) return 'pct-orange';
+            return 'pct-green';
+        }
+
+        function calculateTotal(data, regions, metrics) {
+            const total = {};
+            metrics.forEach(m => total[m] = { fact: 0, plan: 0, pct: 0 });
+            regions.forEach(r => {
+                if (!data[r]) return;
+                metrics.forEach(m => {
+                    const item = data[r][m] || { fact: 0, plan: 0 };
+                    total[m].fact += item.fact;
+                    total[m].plan += item.plan;
+                });
+            });
+            metrics.forEach(m => {
+                if (total[m].plan > 0) total[m].pct = ((total[m].fact / total[m].plan) * 100).toFixed(1);
+            });
+            return total;
+        }
+
+        function renderRow(label, data, metrics, isTotal = false) {
+            let rowClass = isTotal ? "bg-gray-200 font-bold border-t-2 border-black" : "";
+            if (label.includes("Отдел корпоративных")) rowClass = "bg-blue-100 border-t border-blue-300";
+
+            let html = `<tr class="${rowClass}"><td class="bg-region">${label}</td>`;
+            metrics.forEach(m => {
+                const item = data[m] || { fact: 0, plan: 0, pct: 0 };
+                const pctCls = getPctClass(item.pct);
+                html += `
+                    <td>${fmt(item.plan)}</td>
+                    <td>${fmt(item.fact)}</td>
+                    <td class="${pctCls}">${item.pct}%</td>
+                `;
+            });
+            return html + "</tr>";
+        }
+
+        // Dynamics Logic
+        function renderDynamics(currentTotal, prevTotal, hour) {
+            document.getElementById('prev-hour').innerText = `${hour}:00`;
+
+            const metrics = [
+                { key: 'allsum', el: 'dyn-rev' },
+                { key: 'vetosh', el: 'dyn-vetosh' },
+                { key: 'resale', el: 'dyn-resale' }
+            ];
+
+            metrics.forEach(m => {
+                const cur = currentTotal[m.key].fact;
+                const prev = prevTotal[m.key].fact;
+                const diff = cur - prev;
+                const el = document.getElementById(m.el);
+
+                el.innerText = (diff > 0 ? "+" : "") + fmt(diff);
+                el.className = "text-right " + (diff >= 0 ? "dyn-val-green bg-green-100" : "dyn-val-red bg-red-100");
+            });
+        }
+
+        async function init() {
+            try {
+                const res = await fetch('/api/data');
+                const json = await res.json();
+                const d = json.data;
+                const prevD = json.comparison;
+                const meta = json.meta;
+
+                // Set Header Info
+                const parts = meta.date.split('-');
+                document.getElementById('report-date').innerText = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                document.getElementById('report-hour').innerText = meta.hour;
+                document.querySelectorAll('.hour-txt').forEach(e => e.innerText = `${meta.hour}:00`);
+
+                // Define Blocks
+                const regions = ['Москва', 'Поволжье', 'Северо-Запад', 'Сибирь-Урал', 'Центр', 'Юг'];
+                const blocks = [
+                    { id: 'table-1', metrics: ['allsum', 'gp', 'resale'] },
+                    { id: 'table-2', metrics: ['per', 'obliv', 'vaf'] },
+                    { id: 'table-3', metrics: ['vetosh', 'ruk', 'stretch'] },
+                    { id: 'table-4', metrics: ['bugs', 'china', 'china_sum'] }
+                ];
+
+                let grandTotal = {}; // For Resale Share & Dynamics
+
+                blocks.forEach(blk => {
+                    const tbody = document.getElementById(blk.id);
+                    tbody.innerHTML = '';
+
+                    // Regions
+                    regions.forEach(r => tbody.innerHTML += renderRow(r, d[r], blk.metrics));
+
+                    // Total Retail
+                    const total = calculateTotal(d, regions, blk.metrics);
+                    tbody.innerHTML += renderRow('Итого розница', total, blk.metrics, true);
+
+                    // Corp
+                    if (d['Отдел корпоративных продаж']) {
+                        tbody.innerHTML += renderRow('Отдел корпоративных продаж', d['Отдел корпоративных продаж'], blk.metrics);
+                    }
+
+                    // Save total for shared use
+                    grandTotal = { ...grandTotal, ...total };
+                });
+
+                // Resale Share
+                if (grandTotal.allsum.fact > 0) {
+                    const share = (grandTotal.resale.fact / grandTotal.allsum.fact * 100).toFixed(0);
+                    document.getElementById('resale-share').innerText = `${share}%`;
+                }
+
+                // Comparison (Dynamics)
+                if (prevD) {
+                    const prevTotal = calculateTotal(prevD, regions, ['allsum', 'vetosh', 'resale']);
+                    renderDynamics(grandTotal, prevTotal, meta.hour);
+                }
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

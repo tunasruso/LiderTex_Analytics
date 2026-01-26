@@ -1,0 +1,20 @@
+Base_Table,Custom_Table,Field_Name,Business_Purpose,Join_Key
+opportunities,opportunities_cstm,id / id_c,Primary key for opportunity,opportunities.id = opportunities_cstm.id_c
+opportunities,,sales_stage,Deal status (Closed Won = success),
+opportunities,,amount,Deal amount (total with VAT),
+opportunities,,amount_net,Deal amount (net without VAT),
+opportunities,,date_closed,Date when deal closed (for daily reports),
+opportunities,,date_modified,Last modification timestamp (for hourly tracking),
+opportunities,,account_id,Link to client account,opportunities.account_id = accounts.id
+opportunities,,warehouse_onec_id,1C warehouse reference,
+opportunities,,onec_id,1C document ID,
+opportunities_cstm,,routs_c,Route/region (UNRELIABLE - mostly empty),
+accounts,accounts_cstm,id / id_c,Primary key for account,accounts.id = accounts_cstm.id_c
+accounts_cstm,,routs_c,Client route/region (PRIMARY region source),accounts_cstm.routs_c = routs.id
+accounts_cstm,,teritory_c,Territory code,
+accounts_cstm,,district_c,District name,
+accounts,,shipping_address_city,Shipping city,
+accounts,,onec_id,1C client reference,
+routs,,id,Route/region identifier,
+routs,,name,Route/region name (display),
+routs,,warehouse_id,Assigned warehouse,
