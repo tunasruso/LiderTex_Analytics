@@ -18,9 +18,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Add sslmode requirement for some cloud providers if needed, usually 'require'
-# Connect arguments can be adjusted based on the specific provider requirements
-engine = create_engine(DATABASE_URL)
+# Add pool_pre_ping=True to help with dropped connections
+# and set connect_timeout to avoid hanging forever
+engine = create_engine(
+    DATABASE_URL, 
+    pool_pre_ping=True,
+    connect_args={"connect_timeout": 10} if "postgresql" in DATABASE_URL else {}
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

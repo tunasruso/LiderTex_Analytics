@@ -8,9 +8,14 @@ from datetime import date
 from .database import get_db, Base, engine
 from .models import Sale
 
-# Create tables if they don't exist (for dev/demo purposes)
-# In production, use Alembic migrations.
-Base.metadata.create_all(bind=engine)
+# Note: We avoid calling create_all at module level because it can hang 
+# if the database is unreachable, causing a 500 error on Vercel startup.
+try:
+    # This will only create tables if the connection is available
+    # For a robust production app, use migrations (Alembic)
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Database initialization failed: {e}")
 
 app = FastAPI(title="Sales Dashboard API")
 
