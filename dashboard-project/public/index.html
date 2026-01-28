@@ -1,108 +1,596 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru" class="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Analytics Dashboard</title>
-    <!-- Tailwind CSS for rapid styling -->
+    <title>Факт продаж</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        header: '#E6E6E6', // Light gray background
+                        plan: '#F2F2F2',    // Column header bg
+                        border: '#000000',  // Black border
+                        region: '#EBF1DE',  // Region column bg (Greenish tint)
+                        highlight: '#FFFF00', // Yellow
+                    },
+                    fontFamily: {
+                        sans: ['Arimo', 'Arial', 'sans-serif'],
+                    },
+                    fontSize: {
+                        'xs': '0.7rem',
+                        'sm': '0.8rem',
+                        'base': '0.9rem'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FFFFFF;
+            color: #000;
+            font-family: 'Arimo', sans-serif;
+            padding: 20px;
+        }
+
+        /* Excel Grid Styling */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+        }
+
+        /* Thick Header Border */
+        .thick-border {
+            border: 2px solid #000 !important;
+        }
+
+        .thick-outline {
+            border: 2px solid #000;
+        }
+
+        th {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #E6E6E6;
+        }
+
+        td {
+            border: 1px solid #000;
+            padding: 3px 6px;
+            text-align: right;
+        }
+
+        /* Header Colors */
+        .color-header-red {
+            color: red;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .color-header-rev {
+            background-color: #DAEEF3;
+        }
+
+        /* Light Blue */
+        .color-header-gp {
+            background-color: #FDE9D9;
+        }
+
+        /* Light Orange */
+        .color-header-resale {
+            background-color: #DDD9C4;
+        }
+
+        /* Beige */
+
+        .bg-region {
+            background-color: #DCE6F1;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        /* Conditional Formatting Classes */
+        .pct-green {
+            background-color: #C6EFCE;
+            color: #006100;
+            font-weight: bold;
+        }
+
+        .pct-orange {
+            background-color: #FFEB9C;
+            color: #9C5700;
+            font-weight: bold;
+        }
+
+        .pct-red {
+            background-color: #FFC7CE;
+            color: #9C0006;
+            font-weight: bold;
+        }
+
+        /* Dynamics Block */
+        .dyn-box {
+            background-color: #EBF1DE;
+            padding: 10px;
+            border: 1px solid #ddd;
+            width: fit-content;
+        }
+
+        .dyn-val-green {
+            color: #008000;
+            font-weight: bold;
+        }
+
+        .dyn-val-red {
+            color: #FF0000;
+            font-weight: bold;
+        }
+
+        /* Nav Tabs */
+        .nav-link {
+            padding: 10px 20px;
+            font-weight: bold;
+            text-decoration: none;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            color: #666;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .nav-link.active {
+            background: #fff;
+            border-bottom: 1px solid #fff;
+            color: #000;
+        }
+
+        .nav-container {
+            border-bottom: 1px solid #ccc;
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100 font-sans text-gray-900">
+<body class="bg-white">
 
-    <!-- Header -->
-    <nav class="bg-white shadow-md p-4 mb-6">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-blue-600">📊 Sales Dashboard</h1>
-            <div id="status-indicator" class="text-sm px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                Connecting...</div>
-        </div>
-    </nav>
+    <!-- NAV -->
+    <div class="nav-container">
+        <a href="/" class="nav-link active">Общий отчет</a>
+        <a href="/details" class="nav-link">Детальная аналитика</a>
+    </div>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-4">
-
-        <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <h3 class="text-gray-500 text-sm uppercase">Total Revenue</h3>
-                <p id="total-revenue" class="text-3xl font-bold mt-2">Loading...</p>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <h3 class="text-gray-500 text-sm uppercase">Transactions</h3>
-                <p id="total-transactions" class="text-3xl font-bold mt-2">Loading...</p>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-                <h3 class="text-gray-500 text-sm uppercase">Top Region</h3>
-                <p id="top-region" class="text-3xl font-bold mt-2">Loading...</p>
-            </div>
+    <!-- FILTERS & TOOLS -->
+    <div class="filter-group" id="controls-area"
+        style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px; background: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <div class="f-item" style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: #555;">Дата</label>
+            <input type="date" id="f-date" class="f-select"
+                style="width: 130px; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
         </div>
 
-        <!-- Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Line Chart -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-bold mb-4">Sales Trend</h2>
-                <div class="chart-container relative h-64 w-full">
-                    <canvas id="trendChart"></canvas>
-                </div>
-            </div>
+        <div class="f-item" style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: #555;">Час</label>
+            <input type="number" id="f-hour" class="f-select" value="14" min="0" max="23"
+                style="width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+        </div>
 
-            <!-- Bar Chart -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-bold mb-4">Sales by Region</h2>
-                <div class="chart-container relative h-64 w-full">
-                    <canvas id="regionChart"></canvas>
-                </div>
+        <div class="f-item" style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: #555;">Регион</label>
+            <select id="f-region" class="f-select"
+                style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; min-width: 150px;">
+                <option value="">Все регионы</option>
+            </select>
+        </div>
+        <div class="f-item" style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: #555;">Отдел</label>
+            <select id="f-team" class="f-select"
+                style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; min-width: 150px;" disabled>
+                <option value="">Все отделы</option>
+            </select>
+        </div>
+        <div class="f-item" style="display: flex; flex-direction: column;">
+            <label style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: #555;">Менеджер</label>
+            <select id="f-manager" class="f-select"
+                style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; min-width: 150px;" disabled>
+                <option value="">Все менеджеры</option>
+            </select>
+        </div>
+
+        <button onclick="loadReport()" class="btn-apply h-9 mb-0.5"
+            style="background-color: #1E40AF; color: white; padding: 6px 15px; border-radius: 3px; font-weight: bold; cursor: pointer;">Обновить</button>
+        <button onclick="takeScreenshot()" class="btn-photo h-9 mb-0.5"
+            style="background-color: #047857; color: white; padding: 6px 15px; border-radius: 3px; font-weight: bold; margin-left: auto; cursor: pointer;">📸
+            Сохранить как картинку</button>
+    </div>
+
+    <!-- REPORT CONTENT WRAPPER FOR SCREENSHOT -->
+    <div id="capture-area" class="bg-white p-2">
+
+        <!-- HEADER BLOCK -->
+        <div class="flex justify-between items-center mb-4">
+            <div class="text-xl font-bold">
+                <span class="color-header-red">Факт продаж за <span id="report-date">...</span></span>
+            </div>
+            <div class="text-xl font-bold text-red-600">на <span id="report-hour">...</span>:00</div>
+            <div class="font-bold">со стадии 4 и выше</div>
+        </div>
+
+        <!-- TABLE 1: REVENUE -->
+        <div class="thick-outline mb-6">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="bg-region w-48">Регион</th>
+                        <th colspan="4" class="color-header-rev">ВЫРУЧКА, РУБ.</th>
+                        <th colspan="4" class="color-header-gp">ГП, РУБ.</th>
+                        <th colspan="4" class="color-header-resale">ПЕРЕКУП, РУБ.</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-region"></th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody id="table-1"></tbody>
+            </table>
+        </div>
+
+        <!-- TABLE 2: GLOVES -->
+        <div class="thick-outline mb-6">
+            <div class="flex justify-end font-bold pr-2 bg-white text-xs text-blue-800 italic">ДОЛЯ ПЕРЕКУПА В ОБЩЕЙ
+                ВЫРУЧКЕ
+                <span id="resale-share">...%</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="bg-region w-48">Регион</th>
+                        <th colspan="4" class="bg-gray-100">ПЕРЧАТКИ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">ОБЛИВ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">ВАФЛЯ, ШТ.</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-region"></th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody id="table-2"></tbody>
+            </table>
+        </div>
+
+        <!-- TABLE 3: RAGS -->
+        <div class="thick-outline mb-6">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="bg-region w-48">Регион</th>
+                        <th colspan="4" class="bg-gray-100">ВЕТОШЬ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">РУКАВИЦЫ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">СТРЕЙЧ, ШТ.</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-region"></th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody id="table-3"></tbody>
+            </table>
+        </div>
+
+        <!-- TABLE 4: BAGS/CHINA -->
+        <div class="thick-outline mb-6">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="bg-region w-48">Регион</th>
+                        <th colspan="4" class="bg-gray-100">МЕШКИ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">КИТАЙСКИЕ ПЕРЧАТКИ, ШТ.</th>
+                        <th colspan="4" class="bg-gray-100">КИТАЙСКИЕ ПЕРЧАТКИ, РУБ.</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-region"></th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                        <th>План</th>
+                        <th>План День</th>
+                        <th>Факт</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody id="table-4"></tbody>
+            </table>
+        </div>
+
+        <!-- DYNAMICS BLOCK -->
+        <div class="dyn-box mt-8">
+            <h3 class="font-bold mb-2">Динамика к <span id="prev-hour">9:00</span> вчерашнего дня</h3>
+            <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm font-bold">
+                <div>Выручка</div>
+                <div id="dyn-rev" class="text-right">...</div>
+
+                <div>Ветошь</div>
+                <div id="dyn-vetosh" class="text-right">...</div>
+
+                <div>Перекуп</div>
+                <div id="dyn-resale" class="text-right">...</div>
             </div>
         </div>
 
-        <!-- Recent Transactions Table -->
-        <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-bold">Recent Transactions</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Product</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Region</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactions-table-body" class="bg-white divide-y divide-gray-200">
-                        <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        <script>
+            const fmt = (n) => new Intl.NumberFormat('ru-RU').format(Math.round(n));
 
-    </main>
+            function getPctClass(pct) {
+                if (pct === 0) return '';
+                if (pct < 50) return 'pct-red';
+                if (pct < 85) return 'pct-orange';
+                return 'pct-green';
+            }
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-6 mt-12">
-        <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2026 Dashboard Project. Deployed on Vercel.</p>
-        </div>
-    </footer>
+            function calculateTotal(data, regions, metrics) {
+                const total = {};
+                metrics.forEach(m => total[m] = { fact: 0, plan: 0, daily_plan: 0, pct: 0 });
+                regions.forEach(r => {
+                    if (!data[r]) return;
+                    metrics.forEach(m => {
+                        const item = data[r][m] || { fact: 0, plan: 0, daily_plan: 0 };
+                        total[m].fact += item.fact;
+                        total[m].plan += item.plan;
+                        total[m].daily_plan += (item.daily_plan || 0);
+                    });
+                });
+                metrics.forEach(m => {
+                    if (total[m].plan > 0) total[m].pct = ((total[m].fact / total[m].plan) * 100).toFixed(1);
+                });
+                return total;
+            }
 
-    <!-- App Logic -->
-    <script src="app.js"></script>
+            function renderRow(label, data, metrics, isTotal = false) {
+                let rowClass = isTotal ? "bg-gray-200 font-bold border-t-2 border-black" : "";
+                if (label.includes("Отдел корпоративных")) rowClass = "bg-blue-100 border-t border-blue-300";
+
+                let html = `<tr class="${rowClass}"><td class="bg-region">${label}</td>`;
+                metrics.forEach(m => {
+                    const item = data[m] || { fact: 0, plan: 0, daily_plan: 0, pct: 0 };
+                    const pctCls = getPctClass(item.pct);
+                    html += `
+                    <td>${fmt(item.plan)}</td>
+                    <td class="bg-yellow-50 font-semibold text-blue-800">${fmt(item.daily_plan || 0)}</td>
+                    <td>${fmt(item.fact)}</td>
+                    <td class="${pctCls}">${item.pct}%</td>
+                `;
+                });
+                return html + "</tr>";
+            }
+
+            // Dynamics Logic
+            function renderDynamics(currentTotal, prevTotal, hour) {
+                document.getElementById('prev-hour').innerText = `${hour}:00`;
+
+                const metrics = [
+                    { key: 'allsum', el: 'dyn-rev' },
+                    { key: 'vetosh', el: 'dyn-vetosh' },
+                    { key: 'resale', el: 'dyn-resale' }
+                ];
+
+                metrics.forEach(m => {
+                    const cur = currentTotal[m.key].fact;
+                    const prev = prevTotal[m.key].fact;
+                    const diff = cur - prev;
+                    const el = document.getElementById(m.el);
+
+                    el.innerText = (diff > 0 ? "+" : "") + fmt(diff);
+                    el.className = "text-right " + (diff >= 0 ? "dyn-val-green bg-green-100" : "dyn-val-red bg-red-100");
+                });
+            }
+
+            let hierarchy = {};
+
+            // Hierarchy & Cascading Logic
+            async function loadHierarchy() {
+                try {
+                    const res = await fetch('/api/hierarchy');
+                    hierarchy = await res.json();
+
+                    const regSel = document.getElementById('f-region');
+                    Object.keys(hierarchy).forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r;
+                        opt.innerText = r;
+                        regSel.appendChild(opt);
+                    });
+                } catch (e) { console.error(e); }
+            }
+
+            document.getElementById('f-region').addEventListener('change', function () {
+                const reg = this.value;
+                const teamSel = document.getElementById('f-team');
+                const mgrSel = document.getElementById('f-manager');
+
+                teamSel.innerHTML = '<option value="">Все отделы</option>';
+                mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+                teamSel.disabled = !reg;
+                mgrSel.disabled = true;
+
+                if (reg && hierarchy[reg]) {
+                    hierarchy[reg].forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.innerText = t.name;
+                        teamSel.appendChild(opt);
+                    });
+                }
+            });
+
+            document.getElementById('f-team').addEventListener('change', function () {
+                const tid = this.value;
+                const reg = document.getElementById('f-region').value;
+                const mgrSel = document.getElementById('f-manager');
+
+                mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+                mgrSel.disabled = !tid;
+
+                if (reg && tid) {
+                    const team = hierarchy[reg].find(t => t.id === tid);
+                    if (team && team.managers) {
+                        team.managers.forEach(m => {
+                            const opt = document.createElement('option');
+                            opt.value = m.id;
+                            opt.innerText = m.name;
+                            mgrSel.appendChild(opt);
+                        });
+                    }
+                }
+            });
+
+            async function loadReport() {
+                const hourCtx = document.getElementById('f-hour');
+                const dateCtx = document.getElementById('f-date');
+
+                // Initialize default date (Today) if empty
+                if (!dateCtx.value) {
+                    dateCtx.value = new Date().toISOString().split('T')[0];
+                }
+
+                // Load initial hour from URL if first run
+                if (!hourCtx.dataset.init) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const h = urlParams.get('hour') || 14;
+                    const d = urlParams.get('date');
+
+                    hourCtx.value = h;
+                    if (d) dateCtx.value = d;
+
+                    hourCtx.dataset.init = "true";
+                }
+
+                const hour = hourCtx.value;
+                const date = dateCtx.value;
+                const region = document.getElementById('f-region').value;
+                const team = document.getElementById('f-team').value;
+                const manager = document.getElementById('f-manager').value;
+
+                const params = new URLSearchParams({ hour, date });
+                if (region) params.append('region', region);
+                if (team) params.append('team_id', team);
+                if (manager) params.append('manager_id', manager);
+
+                try {
+                    const res = await fetch(`/api/data?${params.toString()}`);
+                    const json = await res.json();
+                    const d = json.data;
+                    const prevD = json.comparison;
+                    const meta = json.meta;
+
+                    // Set Header Info
+                    const parts = meta.date.split('-');
+                    document.getElementById('report-date').innerText = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                    document.getElementById('report-hour').innerText = meta.hour;
+                    document.querySelectorAll('.hour-txt').forEach(e => e.innerText = `${meta.hour}:00`);
+
+                    // Define Blocks
+                    const regions = ['Москва', 'Поволжье', 'Северо-Запад', 'Сибирь-Урал', 'Центр', 'Юг'];
+                    const blocks = [
+                        { id: 'table-1', metrics: ['allsum', 'gp', 'resale'] },
+                        { id: 'table-2', metrics: ['per', 'obliv', 'vaf'] },
+                        { id: 'table-3', metrics: ['vetosh', 'ruk', 'stretch'] },
+                        { id: 'table-4', metrics: ['bugs', 'china', 'china_sum'] }
+                    ];
+
+                    let grandTotal = {};
+
+                    blocks.forEach(blk => {
+                        const tbody = document.getElementById(blk.id);
+                        tbody.innerHTML = '';
+
+                        regions.forEach(r => tbody.innerHTML += renderRow(r, d[r], blk.metrics));
+
+                        const total = calculateTotal(d, regions, blk.metrics);
+                        tbody.innerHTML += renderRow('Итого розница', total, blk.metrics, true);
+
+                        if (d['Отдел корпоративных продаж']) {
+                            tbody.innerHTML += renderRow('Отдел корпоративных продаж', d['Отдел корпоративных продаж'], blk.metrics);
+                        }
+                        grandTotal = { ...grandTotal, ...total };
+                    });
+
+                    if (grandTotal.allsum.fact > 0) {
+                        const share = (grandTotal.resale.fact / grandTotal.allsum.fact * 100).toFixed(0);
+                        document.getElementById('resale-share').innerText = `${share}%`;
+                    }
+
+                    if (prevD) {
+                        const prevTotal = calculateTotal(prevD, regions, ['allsum', 'vetosh', 'resale']);
+                        renderDynamics(grandTotal, prevTotal, meta.hour);
+                    }
+
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            function takeScreenshot() {
+                const target = document.getElementById('capture-area');
+                html2canvas(target).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `report_${new Date().toISOString().slice(0, 10)}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+            }
+
+            loadHierarchy();
+            loadReport();
+        </script>
+    </div>
 </body>
 
 </html>

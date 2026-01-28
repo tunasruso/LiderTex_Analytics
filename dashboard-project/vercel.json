@@ -15,6 +15,14 @@
             "dest": "api/main.py"
         },
         {
+            "src": "/details",
+            "dest": "public/details.html"
+        },
+        {
+            "src": "/plans",
+            "dest": "public/plans.html"
+        },
+        {
             "src": "/(.*)",
             "dest": "public/$1"
         }
