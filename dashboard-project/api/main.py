@@ -5,8 +5,8 @@ from sqlalchemy import func
 from typing import List, Dict, Any
 from datetime import date
 
-from .database import get_db, Base, engine
-from .models import Sale
+from api.database import get_db, Base, engine
+from api.models import Sale
 
 # Note: We avoid calling create_all at module level because it can hang 
 # if the database is unreachable, causing a 500 error on Vercel startup.
