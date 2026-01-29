@@ -1,9 +1,9 @@
 fastapi
 uvicorn
-sqlalchemy
+pymysql
+jinja2
+python-multipart
 psycopg2-binary
-python-dotenv
 pandas
 openpyxl
-cryptography
 pytz

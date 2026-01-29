@@ -174,11 +174,8 @@ def get_actual_sales_ytd(date_obj: datetime):
     cursor = conn.cursor(cursor_factory=RealDictCursor) # Use RealDictCursor
     cursor.execute("SET TIMEZONE = 'Europe/Moscow'")
     
-    # [FIX] Include 'Closed Lost performance'
+    # [FIX] Exclude 'Closed Lost performance' to increase Catch Up pressure
     search_stages = list(TARGET_STAGES)
-    if 'Closed Lost performance' not in search_stages:
-        search_stages.append('Closed Lost performance')
-        
     stages_str = ",".join([f"'{s}'" for s in search_stages])
     
     # Use price_in1 as Cost for GP calculation
@@ -192,7 +189,7 @@ def get_actual_sales_ytd(date_obj: datetime):
         productcat.parent_category_id as parent_cat_id,
         productsale.amount as revenue,
         productsale.count as count,
-        productsale.amount as gp
+        productsale.amount - (productsale.count * COALESCE(NULLIF(product.price_in1, 0), productsale.amount / NULLIF(productsale.count, 0) * 0.8)) as gp
     FROM raw.opportunities
     INNER JOIN raw.productsale ON productsale.opportunity_id = opportunities.id
     INNER JOIN raw.product ON productsale.product_id = product.id 
@@ -253,15 +250,16 @@ def get_actual_sales_ytd(date_obj: datetime):
     return facts_by_region_cat
 
 
-def calculate_daily_target(total_monthly_plan, total_working_days):
+def calculate_daily_target(total_monthly_plan, total_fact_ytd, remaining_days):
     """
-    Static Daily Target = Total Plan / Total Working Days
-    Requested by user to avoid huge jumps at month end.
+    Dynamic Daily Target = (Total Plan - Fact YTD) / Remaining Days
     """
-    if total_working_days <= 0:
+    if remaining_days <= 0:
         return 0
-        
-    return int(total_monthly_plan / total_working_days)
+    
+    gap = total_monthly_plan - total_fact_ytd
+    # If overachieved, gap is negative -> daily plan is negative (surplus).
+    return int(gap / remaining_days)
 
 
 REPORT_REGION_NAMES = {
@@ -280,18 +278,31 @@ def get_daily_plans_breakdown(date_str):
     
     # 1. Get Monthly Plans (Target & Breakdown)
     monthly_data = get_monthly_plans(year, month)
+    total_month_plan = sum(r.get('total_target', 0) for r in monthly_data.values())
     
     # 2. Get Dates
     total_days, remaining_days = get_remaining_working_days(date_obj)
     
     # 3. Get Facts
     facts_ytd = get_actual_sales_ytd(date_obj)
+    total_fact_ytd = sum(
+        sum(c.get('revenue', 0) for c in r.values()) 
+        for r in facts_ytd.values()
+    )
     
     result = {
         'date': date_str,
         'metadata': {
             'total_working_days': total_days,
-            'remaining_working_days': remaining_days
+            'remaining_working_days': remaining_days,
+            'debug': {
+                'total_month_plan': int(total_month_plan),
+                'total_fact_ytd': int(total_fact_ytd),
+                'remaining_days': remaining_days,
+                'db_host': POSTGRES_CONFIG.get('host', 'unknown'),
+                'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'input_date': date_str
+            }
         },
         'hourly_breakdown': {},
         'daily_totals': {}
@@ -351,20 +362,21 @@ def get_daily_plans_breakdown(date_str):
             # Fact GP Fallback
             cat_fact_gp = c_fact['gp']
             
-            # 3. Daily Target (Static)
-            d_rev = calculate_daily_target(cat_plan_rev, total_days)
-            d_gp = calculate_daily_target(cat_plan_gp, total_days)
-            d_qty = calculate_daily_target(cat_plan_qty, total_days) # [NEW]
+            # 3. Daily Target (Dynamic Catch Up)
+            d_rev = calculate_daily_target(cat_plan_rev, cat_fact_rev, remaining_days)
+            d_gp = calculate_daily_target(cat_plan_gp, cat_fact_gp, remaining_days)
+            d_qty = calculate_daily_target(cat_plan_qty, cat_fact_qty, remaining_days)
             
             category_daily_targets[cat] = d_rev
             category_daily_targets_gp[cat] = d_gp
             
             if cat == 'china':
-                # Special mapping for China:
                 result['daily_totals'][region]['china'] = d_qty
                 result['daily_totals'][region]['china_sum'] = d_rev
+                result['daily_totals'][region]['china_sum_gp'] = d_gp
             else:
                 result['daily_totals'][region][cat] = d_rev 
+                result['daily_totals'][region][f"{cat}_gp"] = d_gp
 
         # [FIX] Regional Total Logic for User Alignment
         # User's Manual Calculation (6.4M for Msk) matches the sum of Own Production categories only.
