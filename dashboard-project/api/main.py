@@ -56,10 +56,33 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
 
 # --- HTML Serving (Protected) ---
 def get_template(filename: str):
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    template_path = os.path.join(base_dir, "templates", filename)
-    with open(template_path, "r", encoding="utf-8") as f:
-        return f.read()
+    # Try multiple base paths for Vercel environment
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", filename),
+        os.path.join(os.getcwd(), "api", "templates", filename),
+        os.path.join("/var/task/api/templates", filename),  # Vercel Lambda default
+        os.path.join(os.getcwd(), "templates", filename),
+    ]
+    
+    for path in candidates:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+                
+    # If we get here, no template found
+    # Return a basic error page instead of crashing with 500
+    return f"""
+    <html>
+        <body>
+            <h1>Error: Template not found</h1>
+            <p>Could not locate {filename}</p>
+            <p>Searched locations:</p>
+            <ul>
+                {''.join(f'<li>{p}</li>' for p in candidates)}
+            </ul>
+        </body>
+    </html>
+    """
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(username: str = Depends(verify_credentials)):
