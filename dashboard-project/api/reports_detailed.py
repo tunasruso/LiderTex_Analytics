@@ -7,7 +7,10 @@ from api.reports_3forms import REGION_TEAMS, TARGET_STAGES
 TARGET_STAGES_SQL = ",".join([f"'{s}'" for s in TARGET_STAGES])
 
 def get_connection():
-    return psycopg2.connect(**POSTGRES_CONFIG)
+    conn = psycopg2.connect(**POSTGRES_CONFIG)
+    with conn.cursor() as cur:
+        cur.execute("SET TIMEZONE = 'Europe/Moscow'")
+    return conn
 
 def get_hierarchy():
     """

@@ -62,7 +62,10 @@ TARGET_STAGES = [
 STAGES_SQL = "'" + "','".join(TARGET_STAGES) + "'"
 
 def get_connection():
-    return psycopg2.connect(**POSTGRES_CONFIG)
+    conn = psycopg2.connect(**POSTGRES_CONFIG)
+    with conn.cursor() as cur:
+        cur.execute("SET TIMEZONE = 'Europe/Moscow'")
+    return conn
 
 
 # Новый функционал: планы и ГП (Step 843)

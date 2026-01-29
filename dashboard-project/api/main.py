@@ -8,7 +8,11 @@ from sqlalchemy import func
 from typing import List, Dict, Any
 from datetime import datetime, date, timedelta
 import asyncio
+import asyncio
 import os
+import pytz
+
+msk_tz = pytz.timezone('Europe/Moscow')
 
 from api.database import get_db, Base, engine
 from api.models import Sale
@@ -147,7 +151,7 @@ def debug_env():
 @app.get("/api/data", dependencies=[Depends(verify_credentials)])
 async def get_data(hour: int = 14, region: str = None, team_id: str = None, manager_id: str = None, date: str = None):
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(msk_tz).strftime("%Y-%m-%d")
     
     current_dt = datetime.strptime(date, "%Y-%m-%d")
     yesterday_dt = current_dt - timedelta(days=1)
@@ -181,7 +185,7 @@ async def get_hierarchy():
 @app.get("/api/details", dependencies=[Depends(verify_credentials)])
 async def get_details(region: str=None, team_id: str=None, manager_id: str=None, date: str=None, hour: int=14):
     if not date: 
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(msk_tz).strftime("%Y-%m-%d")
     try:
         return reports_detailed.get_detailed_report(date, hour, region, team_id, manager_id)
     except Exception as e:
@@ -189,7 +193,7 @@ async def get_details(region: str=None, team_id: str=None, manager_id: str=None,
 
 @app.get("/api/plans", dependencies=[Depends(verify_credentials)])
 async def get_plans(year: int = None, month: int = None):
-    now = datetime.now()
+    now = datetime.now(msk_tz)
     if not year: year = now.year
     if not month: month = now.month
     try:
@@ -200,7 +204,7 @@ async def get_plans(year: int = None, month: int = None):
 @app.get("/api/daily-plans", dependencies=[Depends(verify_credentials)])
 async def get_daily_plans(date: str = None):
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(msk_tz).strftime("%Y-%m-%d")
     try:
         return daily_plans.get_daily_plans_breakdown(date)
     except Exception as e:
@@ -208,7 +212,7 @@ async def get_daily_plans(date: str = None):
 
 @app.get("/api/excel-plans/territories", dependencies=[Depends(verify_credentials)])
 async def get_excel_territories_plans(year: int = None, month: int = None, region: str = None):
-    now = datetime.now()
+    now = datetime.now(msk_tz)
     if not year: year = now.year
     if not month: month = now.month
     try:
@@ -218,7 +222,7 @@ async def get_excel_territories_plans(year: int = None, month: int = None, regio
 
 @app.get("/api/excel-plans/warehouses", dependencies=[Depends(verify_credentials)])
 async def get_excel_warehouses_plans(year: int = None, month: int = None, region: str = None):
-    now = datetime.now()
+    now = datetime.now(msk_tz)
     if not year: year = now.year
     if not month: month = now.month
     try:
@@ -229,7 +233,7 @@ async def get_excel_warehouses_plans(year: int = None, month: int = None, region
 @app.get("/api/hourly-analytics", dependencies=[Depends(verify_credentials)])
 async def get_hourly_analytics_endpoint(date: str = None):
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(msk_tz).strftime("%Y-%m-%d")
     try:
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, hourly_analytics.get_hourly_report_data, date)

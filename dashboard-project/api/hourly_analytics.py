@@ -15,7 +15,10 @@ import api.category_mapping as category_mapping
 from psycopg2.extras import RealDictCursor
 
 def get_postgres_conn():
-    return psycopg2.connect(**POSTGRES_CONFIG)
+    conn = psycopg2.connect(**POSTGRES_CONFIG)
+    with conn.cursor() as cur:
+        cur.execute("SET TIMEZONE = 'Europe/Moscow'")
+    return conn
 
 def get_day_facts_with_timing(date_str: str) -> List[Dict]:
     """
@@ -71,6 +74,7 @@ def get_hourly_report_data(date_str: str) -> Dict[str, Any]:
     # [FIX] Load Mappings from Postgres to link Excel Territories <-> CRM Teams
     pg_conn = psycopg2.connect(**POSTGRES_CONFIG)
     pg_cur = pg_conn.cursor()
+    pg_cur.execute("SET TIMEZONE = 'Europe/Moscow'")
     pg_cur.execute("SELECT lower(territory), team_name, region FROM mart.territory_teams_mapping")
     mapping_rows = pg_cur.fetchall()
     pg_conn.close()

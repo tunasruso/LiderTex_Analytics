@@ -57,6 +57,7 @@ def get_working_days(year, month):
     """Returns list of working day statuses from gr_workdays"""
     conn = psycopg2.connect(**POSTGRES_CONFIG)
     cur = conn.cursor()
+    cur.execute("SET TIMEZONE = 'Europe/Moscow'")
     
     cur.execute("""
         SELECT days FROM raw.gr_workdays 
@@ -161,6 +162,7 @@ def get_actual_sales_ytd(date_obj: datetime):
     # 1. Fetch Team Mapping from Postgres
     pg_conn = psycopg2.connect(**POSTGRES_CONFIG)
     pg_cur = pg_conn.cursor()
+    pg_cur.execute("SET TIMEZONE = 'Europe/Moscow'")
     pg_cur.execute("SELECT DISTINCT team_name, region FROM mart.territory_teams_mapping")
     mapping_rows = pg_cur.fetchall()
     pg_conn.close()
@@ -170,6 +172,7 @@ def get_actual_sales_ytd(date_obj: datetime):
     # 2. Fetch Facts from Postgres
     conn = psycopg2.connect(**POSTGRES_CONFIG)
     cursor = conn.cursor(cursor_factory=RealDictCursor) # Use RealDictCursor
+    cursor.execute("SET TIMEZONE = 'Europe/Moscow'")
     
     # [FIX] Include 'Closed Lost performance'
     search_stages = list(TARGET_STAGES)
