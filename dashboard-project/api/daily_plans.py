@@ -211,9 +211,9 @@ def get_actual_sales_ytd(date_obj: datetime):
     
     for row in rows:
         team = row['team_name']
-        rev = row['revenue'] or 0
-        gp = row['gp'] or 0
-        qty = row['count'] or 0
+        rev = float(row['revenue'] or 0)
+        gp = float(row['gp'] or 0)
+        qty = float(row['count'] or 0)
         if not team: continue
         
         # 1. Map Territory -> Region
