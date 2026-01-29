@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>План продаж в разрезе регионов</title>
+    <style>
+        :root {
+            --primary: #FF6B00;
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --text: #eaeaea;
+            --text-muted: #888;
+            --border: #2a2a4a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--text);
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        .date-display {
+            background: var(--bg-card);
+            padding: 8px 15px;
+            border-radius: 8px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            font-size: 0.85rem;
+        }
+
+        th,
+        td {
+            padding: 10px 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #0f3460;
+            color: var(--primary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            background: inherit;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .totals-row {
+            background: rgba(255, 107, 0, 0.1);
+            font-weight: 700;
+        }
+
+        tr:hover:not(.totals-row) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-muted);
+        }
+
+        .nav {
+            margin-bottom: 20px;
+        }
+
+        .nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-right: 20px;
+        }
+
+        .nav a:hover {
+            color: var(--primary);
+        }
+
+        .nav a.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .info-box {
+            background: rgba(255, 107, 0, 0.1);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box strong {
+            color: var(--primary);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        .metric-revenue {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .metric-quantity {
+            background: rgba(33, 150, 243, 0.3);
+        }
+
+        .metric-gp {
+            background: rgba(255, 152, 0, 0.3);
+        }
+
+        /* Multi-level header styles */
+        .excel-table th.group-header {
+            background: #0f3460;
+            border-left: 2px solid var(--primary);
+            text-align: center;
+        }
+
+        .excel-table th.sub-header {
+            background: #1a3a5c;
+            font-size: 0.7rem;
+            padding: 6px 4px;
+        }
+
+        .excel-table .region-row {
+            background: rgba(255, 107, 0, 0.15);
+            font-weight: 700;
+        }
+
+        .excel-table .region-row td {
+            border-top: 2px solid var(--primary);
+        }
+
+        .excel-table td.num-cell {
+            font-size: 0.8rem;
+            padding: 6px 4px;
+        }
+
+        .excel-table td:first-child {
+            min-width: 100px;
+        }
+
+        .excel-table td:nth-child(2) {
+            min-width: 150px;
+        }
+
+        .excel-table td:nth-child(3) {
+            min-width: 150px;
+        }
+
+        /* Filter sections for checkboxes */
+        .filter-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+        }
+
+        .filter-section-title {
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255, 107, 0, 0.2);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        /* Scrollable table wrapper */
+        .table-scroll-wrapper {
+            overflow-x: auto;
+            overflow-y: visible;
+            max-width: 100%;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) rgba(0, 0, 0, 0.3);
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar {
+            height: 12px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 6px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #ff8533;
+        }
+
+        /* Excel-like Daily Plan Styles */
+        .daily-plan-section {
+            margin-bottom: 30px;
+        }
+
+        .daily-plan-header {
+            background: #4a86c7;
+            color: white;
+            padding: 8px 15px;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .daily-plan-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            color: #333;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        .daily-plan-table th {
+            background: #FFFF00;
+            color: #333;
+            font-weight: 600;
+            padding: 8px 6px;
+            text-align: right;
+            border: 1px solid #999;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .daily-plan-table th:first-child {
+            text-align: left;
+            min-width: 120px;
+        }
+
+        .daily-plan-table td {
+            padding: 6px 6px;
+            text-align: right;
+            border: 1px solid #ccc;
+            font-size: 0.8rem;
+        }
+
+        .daily-plan-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+            background: #f5f5f5;
+        }
+
+        .daily-plan-table tr:hover {
+            background: #fffde7;
+        }
+
+        .daily-plan-table .totals-row {
+            background: #fff9c4;
+            font-weight: 700;
+        }
+
+        .daily-plan-table .totals-row td {
+            border-top: 2px solid #333;
+        }
+
+        .hour-section-header {
+            background: #4a86c7;
+            color: white;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            margin-bottom: 0;
+            border-radius: 4px 4px 0 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <nav class="nav">
+            <a href="/">Продажи</a>
+            <a href="/details">Детализация</a>
+            <a href="/plans" class="active">Планы</a>
+        </nav>
+
+        <h1>План продаж в разрезе регионов</h1>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('monthly')">Месячный (CRM)</div>
+            <div class="tab" onclick="switchTab('daily')">План на день</div>
+            <div class="tab" onclick="switchTab('hourlyFact')">План - факт по часам</div>
+            <div class="tab" onclick="switchTab('territories')">По территориям (Excel)</div>
+            <div class="tab" onclick="switchTab('warehouses')">По складам (Excel)</div>
+        </div>
+
+        <!-- MONTHLY TAB -->
+        <div id="monthlyTab" class="tab-content active">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Год</label>
+                    <select id="yearSelect">
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Месяц</label>
+                    <select id="monthSelect">
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="loadMonthly()">Загрузить</button>
+                <div class="date-display" id="monthDisplay">-</div>
+            </div>
+            <div id="monthlyTableContainer">
+                <div class="loading">Загрузка данных...</div>
+            </div>
+        </div>
+
+        <!-- DAILY TAB -->
+        <div id="dailyTab" class="tab-content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Дата</label>
+                    <input type="date" id="dateInput">
+                </div>
+                <button class="btn" onclick="loadDaily()">Загрузить</button>
+            </div>
+            <div id="dailyInfoBox" class="info-box" style="display: none;">
+                <strong>Рабочих дней:</strong> <span id="workingDaysInfo">-</span>
+            </div>
+            <div class="table-scroll-wrapper" id="dailyPlanContainer">
+                <div class="loading">Выберите дату и нажмите "Загрузить"</div>
+            </div>
+        </div>
+
+        <!-- HOURLY FACT TAB -->
+        <div id="hourlyFactTab" class="tab-content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Дата</label>
+                    <input type="date" id="dateInputHourly">
+                </div>
+                <button class="btn" onclick="loadHourlyFact()">Загрузить</button>
+            </div>
+            <div class="table-scroll-wrapper" id="hourlyFactContainer">
+                <div class="loading">Выберите дату и нажмите "Загрузить"</div>
+            </div>
+        </div>
+
+        <!-- TERRITORIES EXCEL TAB -->
+        <div id="territoriesTab" class="tab-content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Год</label>
+                    <select id="terrYearSelect">
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Месяц</label>
+                    <select id="terrMonthSelect">
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>ФИО</label>
+                    <select id="terrManagerSelect">
+                        <option value="">Все менеджеры</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Территория</label>
+                    <select id="terrTerritorySelect">
+                        <option value="">Все территории</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="loadTerritories()">Загрузить</button>
+            </div>
+
+            <!-- Region Checkboxes -->
+            <div class="filter-section">
+                <label class="filter-section-title">Регионы:</label>
+                <div id="regionCheckboxes" class="checkbox-group">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Product Group Checkboxes -->
+            <div class="filter-section">
+                <label class="filter-section-title">Группы товаров:</label>
+                <div id="productGroupCheckboxes" class="checkbox-group">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Источник:</strong> Excel файл plans_territories.xlsx
+            </div>
+
+            <div class="table-scroll-wrapper" id="territoriesTableContainer">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+
+        <!-- WAREHOUSES EXCEL TAB -->
+        <div id="warehousesTab" class="tab-content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Год</label>
+                    <select id="whYearSelect">
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Месяц</label>
+                    <select id="whMonthSelect">
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Склад</label>
+                    <select id="whWarehouseSelect">
+                        <option value="">Все склады</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="loadWarehouses()">Загрузить</button>
+            </div>
+
+            <!-- Region Checkboxes -->
+            <div class="filter-section">
+                <label class="filter-section-title">Регионы:</label>
+                <div id="whRegionCheckboxes" class="checkbox-group">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Product Group Checkboxes -->
+            <div class="filter-section">
+                <label class="filter-section-title">Группы товаров:</label>
+                <div id="whProductGroupCheckboxes" class="checkbox-group">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Источник:</strong> Excel файл plans_warehouses.xlsx
+            </div>
+
+            <div class="table-scroll-wrapper" id="warehousesTableContainer">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLUMNS = [
+            { key: 'revenue', label: 'ВЫРУЧКА' },
+            { key: 'gp', label: 'ГП' },
+            { key: 'resale', label: 'ПЕРЕКУП' },
+            { key: 'per', label: 'ПЕРЧАТКИ' },
+            { key: 'obliv', label: 'ОБЛИВ' },
+            { key: 'vaf', label: 'ВАФЛЯ' },
+            { key: 'vetosh', label: 'ВЕТОШЬ' },
+            { key: 'ruk', label: 'РУКАВИЦЫ' },
+            { key: 'stretch', label: 'СТРЕЙЧ' },
+            { key: 'bugs', label: 'Мешки шт' },
+            { key: 'china', label: 'Китай шт' },
+            { key: 'china_sum', label: 'Китай руб' }
+        ];
+
+        const PRODUCT_GROUPS = [
+            'ПЕРЧАТКИ', 'ОБЛИВ', 'ВАФЛЯ', 'ВЕТОШЬ', 'МЕШКИ', 'РУКАВИЦЫ',
+            'КИТАЙСКИЕ ПЕРЧАТКИ', 'СТРЕЙЧ', 'МИКРОФИБРА', 'ЧИСТАЯ ЗВЕЗДА',
+            'ВАФЛЯ УЗБ', 'ХПП', 'ПРОЧЕЕ', 'НАШ ТОВАР', 'ПЕРЕКУП'
+        ];
+
+        // Aggregate groups that should be excluded from ВЕСЬ ТОВАР summary
+        // (they already include the detailed groups)
+        // ВЕСЬ ТОВАР = НАШ ТОВАР + ПЕРЕКУП (these are the only two groups that should be summed for the summary column)
+        const SUMMARY_GROUPS = ['НАШ ТОВАР', 'ПЕРЕКУП'];
+
+        const REGIONS_ORDER = ['Москва', 'Поволжье', 'Северо-Запад', 'Сибирь-Урал', 'Центр', 'Юг', 'Отдел корпоративных продаж'];
+        const HOURS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+        function formatNumber(n) {
+            if (n === undefined || n === null) return '-';
+            return Math.round(n).toLocaleString('ru-RU');
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+            const tabMap = {
+                'monthly': { tabIdx: 0, contentId: 'monthlyTab' },
+                'daily': { tabIdx: 1, contentId: 'dailyTab' },
+                'hourlyFact': { tabIdx: 2, contentId: 'hourlyFactTab' },
+                'territories': { tabIdx: 3, contentId: 'territoriesTab' },
+                'warehouses': { tabIdx: 4, contentId: 'warehousesTab' }
+            };
+
+            const { tabIdx, contentId } = tabMap[tabName];
+            document.querySelectorAll('.tab')[tabIdx].classList.add('active');
+            document.getElementById(contentId).classList.add('active');
+
+            // Auto-load if empty
+            if (tabName === 'territories') loadTerritories();
+            if (tabName === 'warehouses') loadWarehouses();
+        }
+
+        // ===================== MONTHLY =====================
+        async function loadMonthly() {
+            const year = document.getElementById('yearSelect').value;
+            const month = document.getElementById('monthSelect').value;
+            document.getElementById('monthDisplay').textContent = `${month}/${year}`;
+            document.getElementById('monthlyTableContainer').innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`/api/plans?year=${year}&month=${month}`);
+                if (!response.ok) throw new Error('API Error');
+                const result = await response.json();
+                renderMonthlyTable(result);
+            } catch (err) {
+                document.getElementById('monthlyTableContainer').innerHTML =
+                    `<div class="loading" style="color: #ff6b6b;">Ошибка: ${err.message}</div>`;
+            }
+        }
+
+        function renderMonthlyTable(result) {
+            const data = result.data || {};
+            const totals = result.totals || {};
+
+            let html = '<table><thead><tr><th>Регион</th>';
+            COLUMNS.forEach(col => html += `<th>${col.label}</th>`);
+            html += '</tr></thead><tbody>';
+
+            REGIONS_ORDER.forEach(region => {
+                if (data[region]) {
+                    html += `<tr><td>${region}</td>`;
+                    COLUMNS.forEach(col => html += `<td>${formatNumber(data[region][col.key])}</td>`);
+                    html += '</tr>';
+                }
+            });
+
+            html += '<tr class="totals-row"><td>Итого</td>';
+            COLUMNS.forEach(col => html += `<td>${formatNumber(totals[col.key])}</td>`);
+            html += '</tr></tbody></table>';
+
+            document.getElementById('monthlyTableContainer').innerHTML = html;
+        }
+
+        // ===================== DAILY =====================
+        async function loadDaily() {
+            const date = document.getElementById('dateInput').value;
+            if (!date) { alert('Выберите дату'); return; }
+
+            document.getElementById('dailyPlanContainer').innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`/api/daily-plans?date=${date}`);
+                if (!response.ok) throw new Error('API Error');
+                const result = await response.json();
+                result.selectedDate = date;
+                renderDailyPlan(result);
+            } catch (err) {
+                document.getElementById('dailyPlanContainer').innerHTML =
+                    `<div class="loading" style="color: #ff6b6b;">Ошибка: ${err.message}</div>`;
+            }
+        }
+
+        function formatDateRu(dateStr) {
+            const parts = dateStr.split('-');
+            return `${parts[1]}/${parts[2]}/${parts[0]}`;
+        }
+
+        function renderDailyPlanTable(title, data, hourlyData = null, hour = null) {
+            // Build header
+            let html = `<div class="daily-plan-header">${title}</div>`;
+            html += '<table class="daily-plan-table"><thead><tr>';
+            html += '<th>Регион/Направление</th>';
+            COLUMNS.forEach(col => html += `<th>${col.label}</th>`);
+            html += '</tr></thead><tbody>';
+
+            // Calculate totals
+            const totals = {};
+            COLUMNS.forEach(col => totals[col.key] = 0);
+
+            // Region rows
+            REGIONS_ORDER.forEach(region => {
+                let metrics;
+                if (hourlyData && hour) {
+                    metrics = hourlyData[region] && hourlyData[region][hour] ? hourlyData[region][hour] : {};
+                } else {
+                    metrics = data[region] || {};
+                }
+
+                if (Object.keys(metrics).length === 0) return;
+
+                html += `<tr><td>${region}</td>`;
+                COLUMNS.forEach(col => {
+                    const val = metrics[col.key] || 0;
+                    totals[col.key] += val;
+                    html += `<td>${formatNumber(val)}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            // Totals row
+            html += '<tr class="totals-row"><td>Итого розница:</td>';
+            COLUMNS.forEach(col => html += `<td>${formatNumber(totals[col.key])}</td>`);
+            html += '</tr>';
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function renderDailyPlan(result) {
+            const metadata = result.metadata || {};
+            const dailyTotals = result.daily_totals || {};
+            const hourlyBreakdown = result.hourly_breakdown || {};
+            const dateFormatted = formatDateRu(result.selectedDate || result.date);
+
+            document.getElementById('dailyInfoBox').style.display = 'block';
+            document.getElementById('workingDaysInfo').textContent =
+                `${metadata.remaining_working_days} (осталось) / ${metadata.total_working_days} (всего)`;
+
+            let html = '';
+
+            // 1. Main daily plan table
+            html += '<div class="daily-plan-section">';
+            html += renderDailyPlanTable(`план день      ${dateFormatted}`, dailyTotals);
+            html += '</div>';
+
+            // 2. Hourly breakdown tables
+            HOURS.forEach(hour => {
+                html += '<div class="daily-plan-section">';
+                html += renderDailyPlanTable(`на ${hour}`, dailyTotals, hourlyBreakdown, hour);
+                html += '</div>';
+            });
+
+            document.getElementById('dailyPlanContainer').innerHTML = html;
+        }
+
+
+        // ===================== TERRITORIES (Excel) =====================
+        let territoriesData = null;  // Store loaded data globally
+
+        async function loadTerritories() {
+            const year = document.getElementById('terrYearSelect').value;
+            const month = document.getElementById('terrMonthSelect').value;
+
+            document.getElementById('territoriesTableContainer').innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`/api/excel-plans/territories?year=${year}&month=${month}`);
+                if (!response.ok) throw new Error('API Error');
+                territoriesData = await response.json();
+
+                // Populate filter checkboxes and dropdowns
+                populateTerritoriesFilters(territoriesData);
+
+                // Render with current filter settings
+                applyTerritoriesFilters();
+            } catch (err) {
+                document.getElementById('territoriesTableContainer').innerHTML =
+                    `<div class="loading" style="color: #ff6b6b;">Ошибка: ${err.message}</div>`;
+            }
+        }
+
+        function populateTerritoriesFilters(result) {
+            const data = result.data || [];
+
+            // Extract unique values
+            const regions = [...new Set(data.map(r => r.region).filter(Boolean))].sort();
+            const managers = [...new Set(data.map(r => r.manager).filter(Boolean))].sort();
+            const territories = [...new Set(data.map(r => r.territory).filter(Boolean))].sort();
+            const productGroupsWithData = PRODUCT_GROUPS.filter(pg =>
+                data.some(row => row.products[pg] && (row.products[pg].revenue || row.products[pg].quantity || row.products[pg].gp))
+            );
+
+            // Region checkboxes
+            const regionContainer = document.getElementById('regionCheckboxes');
+            regionContainer.innerHTML = regions.map(r => `
+                <label class="checkbox-item">
+                    <input type="checkbox" value="${r}" checked onchange="applyTerritoriesFilters()">
+                    ${r}
+                </label>
+            `).join('');
+
+            // Product group checkboxes
+            const pgContainer = document.getElementById('productGroupCheckboxes');
+            pgContainer.innerHTML = productGroupsWithData.map(pg => `
+                <label class="checkbox-item">
+                    <input type="checkbox" value="${pg}" checked onchange="applyTerritoriesFilters()">
+                    ${pg}
+                </label>
+            `).join('');
+
+            // Manager dropdown
+            const managerSelect = document.getElementById('terrManagerSelect');
+            managerSelect.innerHTML = '<option value="">Все менеджеры</option>' +
+                managers.map(m => `<option value="${m}">${m}</option>`).join('');
+            managerSelect.onchange = applyTerritoriesFilters;
+
+            // Territory dropdown
+            const territorySelect = document.getElementById('terrTerritorySelect');
+            territorySelect.innerHTML = '<option value="">Все территории</option>' +
+                territories.map(t => `<option value="${t}">${t}</option>`).join('');
+            territorySelect.onchange = applyTerritoriesFilters;
+        }
+
+        function applyTerritoriesFilters() {
+            if (!territoriesData) return;
+
+            // Get selected regions
+            const selectedRegions = [...document.querySelectorAll('#regionCheckboxes input:checked')]
+                .map(cb => cb.value);
+
+            // Get selected product groups
+            const selectedPGs = [...document.querySelectorAll('#productGroupCheckboxes input:checked')]
+                .map(cb => cb.value);
+
+            // Get dropdown filters
+            const selectedManager = document.getElementById('terrManagerSelect').value;
+            const selectedTerritory = document.getElementById('terrTerritorySelect').value;
+
+            // Filter data
+            let filteredData = territoriesData.data.filter(row => {
+                if (selectedRegions.length > 0 && !selectedRegions.includes(row.region)) return false;
+                if (selectedManager && row.manager !== selectedManager) return false;
+                if (selectedTerritory && row.territory !== selectedTerritory) return false;
+                return true;
+            });
+
+            // Render with filtered data and selected product groups
+            renderTerritoriesExcel(filteredData, selectedPGs, territoriesData.totals);
+        }
+
+        function renderTerritoriesExcel(data, activeGroups, originalTotals) {
+            if (!activeGroups || activeGroups.length === 0) {
+                activeGroups = PRODUCT_GROUPS.filter(pg =>
+                    data.some(row => row.products[pg] && (row.products[pg].revenue || row.products[pg].quantity || row.products[pg].gp))
+                );
+            }
+
+            // Group data by region
+            const regionMap = {};
+            data.forEach(row => {
+                const reg = row.region || 'Без региона';
+                if (!regionMap[reg]) regionMap[reg] = [];
+                regionMap[reg].push(row);
+            });
+
+            // Build table with 2-level headers
+            let html = '<table class="excel-table"><thead>';
+
+            // Row 1: Fixed columns + Product group names (colspan=3 each) + Summary
+            html += '<tr><th rowspan="2">Регион</th><th rowspan="2">Территория</th><th rowspan="2">ФИО</th>';
+            activeGroups.forEach(pg => {
+                html += `<th class="group-header" colspan="3">${pg}</th>`;
+            });
+            // Add summary column header
+            html += '<th class="group-header" colspan="3" style="background: #2d5016;">ВЕСЬ ТОВАР</th>';
+            html += '</tr>';
+
+            // Row 2: Metrics (ШТ, Выручка, ГП) + Summary metrics
+            html += '<tr>';
+            activeGroups.forEach(() => {
+                html += '<th class="sub-header">ШТ.</th>';
+                html += '<th class="sub-header">ВЫРУЧКА</th>';
+                html += '<th class="sub-header">ГП</th>';
+            });
+            // Summary sub-headers
+            html += '<th class="sub-header" style="background: #3d6820;">ВЫРУЧКА</th>';
+            html += '<th class="sub-header" style="background: #3d6820;">ГП</th>';
+            html += '<th class="sub-header" style="background: #3d6820;">НАЦЕНКА %</th>';
+            html += '</tr></thead><tbody>';
+
+            // Calculate filtered totals
+            const filteredTotals = {};
+            activeGroups.forEach(pg => {
+                filteredTotals[pg] = { quantity: 0, revenue: 0, gp: 0 };
+            });
+            let grandTotalRevenue = 0;
+            let grandTotalGP = 0;
+
+            // Render each region
+            Object.keys(regionMap).forEach(regionName => {
+                const rows = regionMap[regionName];
+
+                // Region summary row
+                const regionTotals = {};
+                let regionTotalRevenue = 0;
+                let regionTotalGP = 0;
+
+                activeGroups.forEach(pg => {
+                    regionTotals[pg] = { quantity: 0, revenue: 0, gp: 0 };
+                    rows.forEach(row => {
+                        if (row.products[pg]) {
+                            regionTotals[pg].quantity += row.products[pg].quantity || 0;
+                            regionTotals[pg].revenue += row.products[pg].revenue || 0;
+                            regionTotals[pg].gp += row.products[pg].gp || 0;
+                        }
+                    });
+                    // Add to filtered totals
+                    filteredTotals[pg].quantity += regionTotals[pg].quantity;
+                    filteredTotals[pg].revenue += regionTotals[pg].revenue;
+                    filteredTotals[pg].gp += regionTotals[pg].gp;
+
+                    // ВЕСЬ ТОВАР = НАШ ТОВАР + ПЕРЕКУП only
+                    if (SUMMARY_GROUPS.includes(pg)) {
+                        regionTotalRevenue += regionTotals[pg].revenue;
+                        regionTotalGP += regionTotals[pg].gp;
+                    }
+                });
+
+                grandTotalRevenue += regionTotalRevenue;
+                grandTotalGP += regionTotalGP;
+
+                const regionMarkup = regionTotalRevenue > 0 ? ((regionTotalGP / (regionTotalRevenue - regionTotalGP)) * 100) : 0;
+
+                html += `<tr class="region-row"><td colspan="3">${regionName}</td>`;
+                activeGroups.forEach(pg => {
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].quantity)}</td>`;
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].revenue)}</td>`;
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].gp)}</td>`;
+                });
+                // Region summary cells
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${formatNumber(regionTotalRevenue)}</td>`;
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${formatNumber(regionTotalGP)}</td>`;
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${regionMarkup.toFixed(2)}%</td>`;
+                html += '</tr>';
+
+                // Territory rows
+                rows.forEach(row => {
+                    // Calculate row totals (ВЕСЬ ТОВАР = НАШ ТОВАР + ПЕРЕКУП)
+                    let rowTotalRevenue = 0;
+                    let rowTotalGP = 0;
+                    activeGroups.forEach(pg => {
+                        // Only include SUMMARY_GROUPS for ВЕСЬ ТОВАР
+                        if (!SUMMARY_GROUPS.includes(pg)) return;
+                        const p = row.products[pg] || {};
+                        rowTotalRevenue += p.revenue || 0;
+                        rowTotalGP += p.gp || 0;
+                    });
+                    const rowMarkup = rowTotalRevenue > 0 ? ((rowTotalGP / (rowTotalRevenue - rowTotalGP)) * 100) : 0;
+
+                    html += `<tr><td></td><td>${row.territory || '-'}</td><td>${row.manager || '-'}</td>`;
+                    activeGroups.forEach(pg => {
+                        const p = row.products[pg] || {};
+                        html += `<td class="num-cell">${formatNumber(p.quantity)}</td>`;
+                        html += `<td class="num-cell">${formatNumber(p.revenue)}</td>`;
+                        html += `<td class="num-cell">${formatNumber(p.gp)}</td>`;
+                    });
+                    // Row summary cells
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${formatNumber(rowTotalRevenue)}</td>`;
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${formatNumber(rowTotalGP)}</td>`;
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${rowMarkup.toFixed(2)}%</td>`;
+                    html += '</tr>';
+                });
+            });
+
+            // Grand Totals row
+            const grandMarkup = grandTotalRevenue > 0 ? ((grandTotalGP / (grandTotalRevenue - grandTotalGP)) * 100) : 0;
+
+            html += '<tr class="totals-row"><td colspan="3">ИТОГО</td>';
+            activeGroups.forEach(pg => {
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].quantity)}</td>`;
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].revenue)}</td>`;
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].gp)}</td>`;
+            });
+            // Grand total summary cells
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${formatNumber(grandTotalRevenue)}</td>`;
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${formatNumber(grandTotalGP)}</td>`;
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${grandMarkup.toFixed(2)}%</td>`;
+            html += '</tr>';
+
+            html += '</tbody></table>';
+            document.getElementById('territoriesTableContainer').innerHTML = html;
+        }
+
+        // ===================== WAREHOUSES (Excel) =====================
+        let warehousesData = null;  // Store loaded data globally
+
+        async function loadWarehouses() {
+            const year = document.getElementById('whYearSelect').value;
+            const month = document.getElementById('whMonthSelect').value;
+
+            document.getElementById('warehousesTableContainer').innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`/api/excel-plans/warehouses?year=${year}&month=${month}`);
+                if (!response.ok) throw new Error('API Error');
+                warehousesData = await response.json();
+
+                // Populate filter checkboxes and dropdowns
+                populateWarehousesFilters(warehousesData);
+
+                // Render with current filter settings
+                applyWarehousesFilters();
+            } catch (err) {
+                document.getElementById('warehousesTableContainer').innerHTML =
+                    `<div class="loading" style="color: #ff6b6b;">Ошибка: ${err.message}</div>`;
+            }
+        }
+
+        function populateWarehousesFilters(result) {
+            const data = result.data || [];
+
+            // Extract unique values
+            const regions = [...new Set(data.map(r => r.region).filter(Boolean))].sort();
+            const warehouses = [...new Set(data.map(r => r.warehouse).filter(Boolean))].sort();
+            const productGroupsWithData = PRODUCT_GROUPS.filter(pg =>
+                data.some(row => row.products[pg] && (row.products[pg].revenue || row.products[pg].quantity || row.products[pg].gp))
+            );
+
+            // Region checkboxes
+            const regionContainer = document.getElementById('whRegionCheckboxes');
+            regionContainer.innerHTML = regions.map(r => `
+                <label class="checkbox-item">
+                    <input type="checkbox" value="${r}" checked onchange="applyWarehousesFilters()">
+                    ${r}
+                </label>
+            `).join('');
+
+            // Product group checkboxes
+            const pgContainer = document.getElementById('whProductGroupCheckboxes');
+            pgContainer.innerHTML = productGroupsWithData.map(pg => `
+                <label class="checkbox-item">
+                    <input type="checkbox" value="${pg}" checked onchange="applyWarehousesFilters()">
+                    ${pg}
+                </label>
+            `).join('');
+
+            // Warehouse dropdown
+            const warehouseSelect = document.getElementById('whWarehouseSelect');
+            warehouseSelect.innerHTML = '<option value="">Все склады</option>' +
+                warehouses.map(w => `<option value="${w}">${w}</option>`).join('');
+            warehouseSelect.onchange = applyWarehousesFilters;
+        }
+
+        function applyWarehousesFilters() {
+            if (!warehousesData) return;
+
+            // Get selected regions
+            const selectedRegions = [...document.querySelectorAll('#whRegionCheckboxes input:checked')]
+                .map(cb => cb.value);
+
+            // Get selected product groups
+            const selectedPGs = [...document.querySelectorAll('#whProductGroupCheckboxes input:checked')]
+                .map(cb => cb.value);
+
+            // Get dropdown filter
+            const selectedWarehouse = document.getElementById('whWarehouseSelect').value;
+
+            // Filter data
+            let filteredData = warehousesData.data.filter(row => {
+                if (selectedRegions.length > 0 && !selectedRegions.includes(row.region)) return false;
+                if (selectedWarehouse && row.warehouse !== selectedWarehouse) return false;
+                return true;
+            });
+
+            // Render with filtered data and selected product groups
+            renderWarehousesExcel(filteredData, selectedPGs, warehousesData.totals);
+        }
+
+        function renderWarehousesExcel(data, activeGroups, originalTotals) {
+            if (!activeGroups || activeGroups.length === 0) {
+                activeGroups = PRODUCT_GROUPS.filter(pg =>
+                    data.some(row => row.products[pg] && (row.products[pg].revenue || row.products[pg].quantity || row.products[pg].gp))
+                );
+            }
+
+            // Group data by region
+            const regionMap = {};
+            data.forEach(row => {
+                const reg = row.region || 'Без региона';
+                if (!regionMap[reg]) regionMap[reg] = [];
+                regionMap[reg].push(row);
+            });
+
+            // Build table with 2-level headers
+            let html = '<table class="excel-table"><thead>';
+
+            // Row 1: Fixed columns + Product group names (colspan=3 each) + Summary
+            html += '<tr><th rowspan="2">Регион</th><th rowspan="2">Склад</th>';
+            activeGroups.forEach(pg => {
+                html += `<th class="group-header" colspan="3">${pg}</th>`;
+            });
+            html += '<th class="group-header" colspan="3" style="background: #2d5016;">ВЕСЬ ТОВАР</th>';
+            html += '</tr>';
+
+            // Row 2: Metrics (ШТ, Выручка, ГП) + Summary metrics
+            html += '<tr>';
+            activeGroups.forEach(() => {
+                html += '<th class="sub-header">ШТ.</th>';
+                html += '<th class="sub-header">ВЫРУЧКА</th>';
+                html += '<th class="sub-header">ГП</th>';
+            });
+            html += '<th class="sub-header" style="background: #3d6820;">ВЫРУЧКА</th>';
+            html += '<th class="sub-header" style="background: #3d6820;">ГП</th>';
+            html += '<th class="sub-header" style="background: #3d6820;">НАЦЕНКА %</th>';
+            html += '</tr></thead><tbody>';
+
+            // Calculate filtered totals
+            const filteredTotals = {};
+            activeGroups.forEach(pg => {
+                filteredTotals[pg] = { quantity: 0, revenue: 0, gp: 0 };
+            });
+            let grandTotalRevenue = 0;
+            let grandTotalGP = 0;
+
+            // Render each region
+            Object.keys(regionMap).forEach(regionName => {
+                const rows = regionMap[regionName];
+
+                // Region summary row
+                const regionTotals = {};
+                let regionTotalRevenue = 0;
+                let regionTotalGP = 0;
+
+                activeGroups.forEach(pg => {
+                    regionTotals[pg] = { quantity: 0, revenue: 0, gp: 0 };
+                    rows.forEach(row => {
+                        if (row.products[pg]) {
+                            regionTotals[pg].quantity += row.products[pg].quantity || 0;
+                            regionTotals[pg].revenue += row.products[pg].revenue || 0;
+                            regionTotals[pg].gp += row.products[pg].gp || 0;
+                        }
+                    });
+                    filteredTotals[pg].quantity += regionTotals[pg].quantity;
+                    filteredTotals[pg].revenue += regionTotals[pg].revenue;
+                    filteredTotals[pg].gp += regionTotals[pg].gp;
+
+                    // ВЕСЬ ТОВАР = НАШ ТОВАР + ПЕРЕКУП only
+                    if (SUMMARY_GROUPS.includes(pg)) {
+                        regionTotalRevenue += regionTotals[pg].revenue;
+                        regionTotalGP += regionTotals[pg].gp;
+                    }
+                });
+
+                grandTotalRevenue += regionTotalRevenue;
+                grandTotalGP += regionTotalGP;
+
+                const regionMarkup = regionTotalRevenue > 0 ? ((regionTotalGP / (regionTotalRevenue - regionTotalGP)) * 100) : 0;
+
+                html += `<tr class="region-row"><td colspan="2">${regionName}</td>`;
+                activeGroups.forEach(pg => {
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].quantity)}</td>`;
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].revenue)}</td>`;
+                    html += `<td class="num-cell">${formatNumber(regionTotals[pg].gp)}</td>`;
+                });
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${formatNumber(regionTotalRevenue)}</td>`;
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${formatNumber(regionTotalGP)}</td>`;
+                html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.3);">${regionMarkup.toFixed(2)}%</td>`;
+                html += '</tr>';
+
+                // Warehouse rows
+                rows.forEach(row => {
+                    let rowTotalRevenue = 0;
+                    let rowTotalGP = 0;
+                    activeGroups.forEach(pg => {
+                        // Only include SUMMARY_GROUPS for ВЕСЬ ТОВАР
+                        if (!SUMMARY_GROUPS.includes(pg)) return;
+                        const p = row.products[pg] || {};
+                        rowTotalRevenue += p.revenue || 0;
+                        rowTotalGP += p.gp || 0;
+                    });
+                    const rowMarkup = rowTotalRevenue > 0 ? ((rowTotalGP / (rowTotalRevenue - rowTotalGP)) * 100) : 0;
+
+                    html += `<tr><td></td><td>${row.warehouse || '-'}</td>`;
+                    activeGroups.forEach(pg => {
+                        const p = row.products[pg] || {};
+                        html += `<td class="num-cell">${formatNumber(p.quantity)}</td>`;
+                        html += `<td class="num-cell">${formatNumber(p.revenue)}</td>`;
+                        html += `<td class="num-cell">${formatNumber(p.gp)}</td>`;
+                    });
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${formatNumber(rowTotalRevenue)}</td>`;
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${formatNumber(rowTotalGP)}</td>`;
+                    html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.2);">${rowMarkup.toFixed(2)}%</td>`;
+                    html += '</tr>';
+                });
+            });
+
+            // Grand Totals row
+            const grandMarkup = grandTotalRevenue > 0 ? ((grandTotalGP / (grandTotalRevenue - grandTotalGP)) * 100) : 0;
+
+            html += '<tr class="totals-row"><td colspan="2">ИТОГО</td>';
+            activeGroups.forEach(pg => {
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].quantity)}</td>`;
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].revenue)}</td>`;
+                html += `<td class="num-cell">${formatNumber(filteredTotals[pg].gp)}</td>`;
+            });
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${formatNumber(grandTotalRevenue)}</td>`;
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${formatNumber(grandTotalGP)}</td>`;
+            html += `<td class="num-cell" style="background: rgba(45, 80, 22, 0.4);">${grandMarkup.toFixed(2)}%</td>`;
+            html += '</tr>';
+
+            html += '</tbody></table>';
+            document.getElementById('warehousesTableContainer').innerHTML = html;
+        }
+
+        // ===================== INIT =====================
+        document.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            document.getElementById('yearSelect').value = now.getFullYear();
+            document.getElementById('monthSelect').value = now.getMonth() + 1;
+            document.getElementById('terrYearSelect').value = now.getFullYear();
+            document.getElementById('terrMonthSelect').value = now.getMonth() + 1;
+            document.getElementById('whYearSelect').value = now.getFullYear();
+            document.getElementById('whMonthSelect').value = now.getMonth() + 1;
+
+            const today = now.toISOString().split('T')[0];
+            document.getElementById('dateInput').value = today;
+            document.getElementById('dateInputHourly').value = today;
+
+            loadMonthly();
+        });
+        // --- Hourly Fact Logic ---
+        async function loadHourlyFact() {
+            const date = document.getElementById('dateInputHourly').value;
+            if (!date) { alert('Выберите дату'); return; }
+
+            document.getElementById('hourlyFactContainer').innerHTML = '<div class="loading">Загрузка данных по часам...</div>';
+
+            try {
+                const response = await fetch(`/api/hourly-analytics?date=${date}`);
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                renderHourlyFact(data);
+            } catch (err) {
+                document.getElementById('hourlyFactContainer').innerHTML =
+                    `<div class="loading" style="color: #ff6b6b;">Ошибка: ${err.message}</div>`;
+            }
+        }
+
+        const FACT_CATS = [
+            { key: 'resale', label: 'ПЕРЕКУП' },
+            { key: 'per', label: 'ПЕРЧАТКИ' },
+            { key: 'obliv', label: 'ОБЛИВ' },
+            { key: 'vaf', label: 'ВАФЛЯ' },
+            { key: 'vetosh', label: 'ВЕТОШЬ' },
+            { key: 'ruk', label: 'РУКАВИЦЫ' },
+            { key: 'stretch', label: 'СТРЕЙЧ' },
+            { key: 'bugs', label: 'МЕШКИ ШТ' },
+            { key: 'china', label: 'КИТАЙ ШТ' },
+            { key: 'china_sum', label: 'КИТАЙ РУБ' }
+        ];
+
+        function renderHourlyFact(data) {
+            let html = '';
+            const hours = Object.keys(data).sort((a, b) => Number(a) - Number(b));
+
+            if (hours.length === 0) {
+                document.getElementById('hourlyFactContainer').innerHTML = '<div class="loading">Нет данных</div>';
+                return;
+            }
+
+            hours.forEach(hour => {
+                const rows = data[hour];
+                if (!rows || rows.length === 0) return;
+
+                html += `<div class="daily-plan-section">`;
+                html += `<div class="daily-plan-header">План-Факт на ${hour}:00</div>`;
+                html += `<div style="overflow-x: auto;">`;
+                html += `<table class="daily-plan-table" style="min-width: 2000px;">`;
+
+                // Header 1: Cats
+                html += `<thead><tr>`;
+                html += `<th rowspan="2" style="position:sticky; left:0; z-index:2; background:#ffff00;">Регион</th>`;
+                html += `<th rowspan="2" style="position:sticky; left:100px; z-index:2; background:#ffff00;">Территория</th>`;
+                FACT_CATS.forEach(cat => {
+                    html += `<th colspan="4" style="text-align:center; border-bottom:1px solid #ccc;">${cat.label}</th>`;
+                });
+                html += `</tr>`;
+
+                // Header 2: Metrics
+                html += `<tr>`;
+                FACT_CATS.forEach(cat => {
+                    html += `<th>Выр. План</th><th>Выр. Факт</th><th>ГП План</th><th>ГП Факт</th>`;
+                });
+                html += `</tr></thead>`;
+
+                // Body
+                html += `<tbody>`;
+                rows.sort((a, b) => (a.region || '').localeCompare(b.region || '') || (a.territory || '').localeCompare(b.territory || ''));
+
+                rows.forEach(row => {
+                    html += `<tr>`;
+                    html += `<td style="position:sticky; left:0; background:#fff; z-index:1;">${row.region}</td>`;
+                    html += `<td style="position:sticky; left:100px; background:#fff; z-index:1;">${row.territory}</td>`;
+
+                    FACT_CATS.forEach(cat => {
+                        const planRev = row[`${cat.key}_plan_revenue`] || 0;
+                        const factRev = row[`${cat.key}_fact_revenue`] || 0;
+                        const planGp = row[`${cat.key}_plan_gp`] || 0;
+                        const factGp = row[`${cat.key}_fact_gp`] || 0;
+
+                        html += `<td>${formatNumber(planRev)}</td>`;
+                        html += `<td>${formatNumber(factRev)}</td>`;
+                        html += `<td>${formatNumber(planGp)}</td>`;
+                        html += `<td>${formatNumber(factGp)}</td>`;
+                    });
+                    html += `</tr>`;
+                });
+
+                html += `</tbody></table></div></div>`;
+            });
+
+            document.getElementById('hourlyFactContainer').innerHTML = html;
+        }
+    </script>
+</body>
+
+</html>

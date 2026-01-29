@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детальная Аналитика</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        header: '#E6E6E6', plan: '#F2F2F2', border: '#000000', region: '#EBF1DE', highlight: '#FFFF00',
+                    },
+                    fontFamily: { sans: ['Arimo', 'Arial', 'sans-serif'] },
+                    fontSize: { 'xs': '0.7rem', 'sm': '0.8rem' }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            background-color: #FFFFFF;
+            color: #000;
+            font-family: 'Arimo', sans-serif;
+            padding: 20px;
+        }
+
+        .btn-photo {
+            background-color: #047857;
+            color: white;
+            padding: 6px 15px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: auto;
+        }
+
+        .btn-photo:hover {
+            background-color: #059669;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+        }
+
+        .thick-outline {
+            border: 2px solid #000;
+        }
+
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: right;
+        }
+
+        th {
+            text-align: center;
+            font-weight: bold;
+            background-color: #E6E6E6;
+        }
+
+        .bg-region {
+            background-color: #DCE6F1;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        /* Tab Nav */
+        .nav-link {
+            padding: 10px 20px;
+            font-weight: bold;
+            text-decoration: none;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            color: #666;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .nav-link.active {
+            background: #fff;
+            border-bottom: 1px solid #fff;
+            color: #000;
+        }
+
+        .nav-container {
+            border-bottom: 1px solid #ccc;
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Filter Row */
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            background: #f5f5f5;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .f-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .f-item label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #555;
+        }
+
+        .f-select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            min-width: 150px;
+            font-size: 0.9rem;
+        }
+
+        .btn-apply {
+            background-color: #1E40AF;
+            color: white;
+            padding: 6px 15px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .btn-apply:hover {
+            background-color: #1E3A8A;
+        }
+    </style>
+</head>
+
+<body class="bg-white">
+
+    <!-- NAV -->
+    <div class="nav-container">
+        <a href="/" class="nav-link">Общий отчет</a>
+        <a href="/details" class="nav-link active">Детальная аналитика</a>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filter-group">
+        <div class="f-item">
+            <label>Дата</label>
+            <input type="date" id="f-date" class="f-select" value="2026-01-26">
+        </div>
+        <div class="f-item">
+            <label>Час</label>
+            <input type="number" id="f-hour" class="f-select" value="14" min="0" max="23" style="width: 60px;">
+        </div>
+
+        <div class="f-item">
+            <label>Регион</label>
+            <select id="f-region" class="f-select">
+                <option value="">Все регионы</option>
+            </select>
+        </div>
+        <div class="f-item">
+            <label>Отдел</label>
+            <select id="f-team" class="f-select" disabled>
+                <option value="">Все отделы</option>
+            </select>
+        </div>
+        <div class="f-item">
+            <label>Менеджер</label>
+            <select id="f-manager" class="f-select" disabled>
+                <option value="">Все менеджеры</option>
+            </select>
+        </div>
+
+        <button onclick="loadReport()" class="btn-apply h-9 mb-0.5">Применить</button>
+        <button onclick="takeScreenshot()" class="btn-photo h-9 mb-0.5">📸 Сохранить как картинку</button>
+    </div>
+
+    <!-- REPORT CONTENT (Similar to Main Report but Dynamic Rows) -->
+    <div id="capture-area" class="bg-white p-2">
+        <div id="report-container" class="space-y-6"></div>
+    </div>
+
+    <script>
+        const fmt = (n) => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+        let hierarchy = {};
+
+        async function init() {
+            // Load Hierarchy
+            try {
+                const res = await fetch('/api/hierarchy');
+                hierarchy = await res.json();
+
+                const regSel = document.getElementById('f-region');
+                Object.keys(hierarchy).forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r;
+                    opt.innerText = r;
+                    regSel.appendChild(opt);
+                });
+
+                // Load default report
+                loadReport();
+            } catch (e) { console.error(e); }
+        }
+
+        // Cascading Logic
+        document.getElementById('f-region').addEventListener('change', function () {
+            const reg = this.value;
+            const teamSel = document.getElementById('f-team');
+            const mgrSel = document.getElementById('f-manager');
+
+            teamSel.innerHTML = '<option value="">Все отделы</option>';
+            mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+            teamSel.disabled = !reg;
+            mgrSel.disabled = true;
+
+            if (reg && hierarchy[reg]) {
+                hierarchy[reg].forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.innerText = t.name;
+                    teamSel.appendChild(opt);
+                });
+            }
+        });
+
+        document.getElementById('f-team').addEventListener('change', function () {
+            const tid = this.value;
+            const reg = document.getElementById('f-region').value;
+            const mgrSel = document.getElementById('f-manager');
+
+            mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+            mgrSel.disabled = !tid;
+
+            if (reg && tid) {
+                const team = hierarchy[reg].find(t => t.id === tid);
+                if (team && team.managers) {
+                    team.managers.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.innerText = m.name;
+                        mgrSel.appendChild(opt);
+                    });
+                }
+            }
+        });
+
+        async function loadReport() {
+            const date = document.getElementById('f-date').value;
+            const hour = document.getElementById('f-hour').value;
+            const region = document.getElementById('f-region').value;
+            const team = document.getElementById('f-team').value;
+            const manager = document.getElementById('f-manager').value;
+
+            const params = new URLSearchParams({ date, hour });
+            if (region) params.append('region', region);
+            if (team) params.append('team_id', team);
+            if (manager) params.append('manager_id', manager);
+
+            document.getElementById('report-container').innerHTML = '<div class="text-center p-10">Загрузка...</div>';
+
+            try {
+                const res = await fetch(`/api/details?${params.toString()}`);
+                const data = await res.json();
+                renderTable(data);
+            } catch (e) {
+                document.getElementById('report-container').innerHTML = `<div class="text-red-600">Ошибка: ${e}</div>`;
+            }
+        }
+
+        function renderTable(rows) {
+            const container = document.getElementById('report-container');
+            container.innerHTML = '';
+
+            if (rows.length === 0) {
+                container.innerHTML = '<div class="text-center p-10 text-gray-500">Нет данных за выбранный период</div>';
+                return;
+            }
+
+            // We render ONE big table or splits? Creating one big table for details is better.
+            // But columns must match the main report groups.
+            // Let's create a single horizontal scrolling table or standard blocks based on user preference.
+            // "показатели такие же как в нашем текущем отчете" -> Same 4 blocks?
+            // If we have 100 managers, 4 blocks is annoying. 1 wide table is better.
+            // But sticking to Excel style: Maybe 1 wide table with multi-row headers.
+
+            const table = document.createElement('table');
+            table.className = 'thick-outline';
+
+            // Header
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="bg-region w-64 text-left">Менеджер / Отдел</th>
+                        <th colspan="2" style="background:#DAEEF3">Выручка</th>
+                        <th colspan="2" style="background:#FDE9D9">ГП</th>
+                        <th colspan="1" style="background:#DDD9C4">Перекуп</th>
+                        <th colspan="3" class="bg-gray-100">Перчатки / Облив / Вафля</th>
+                        <th colspan="3" class="bg-gray-100">Ветошь / Рукавицы / Стрейч</th>
+                         <th colspan="2" class="bg-gray-100">Китай</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-region"></th>
+                        <th>Факт</th> <th>План</th>
+                        <th>Факт</th> <th>План</th>
+                        <th>Факт</th>
+                        <th>Перч</th> <th>Облив</th> <th>Вафля</th>
+                        <th>Ветошь</th> <th>Рук</th> <th>Стрейч</th>
+                        <th>Шт</th> <th>Руб</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            const tbody = table.querySelector('tbody');
+
+            let total = { allsum: 0, gp: 0, resale: 0, per: 0, obliv: 0, vaf: 0, vetosh: 0, ruk: 0, stretch: 0, china_pcs: 0, china_rub: 0 };
+
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-left font-bold bg-gray-50 text-xs">
+                        <div>${r.manager_name}</div>
+                        <div class="text-gray-400 text-[10px] whitespace-nowrap overflow-hidden text-ellipsis w-60">${r.team_name}</div>
+                    </td>
+                    <td class="font-bold">${fmt(r.allsum)}</td> <td class="text-gray-400 text-xs">0</td>
+                    <td>${fmt(r.gp)}</td> <td class="text-gray-400 text-xs">0</td>
+                    <td>${fmt(r.resale_rub)}</td>
+                    
+                    <td>${fmt(r.per)}</td> <td>${fmt(r.obliv)}</td> <td>${fmt(r.vaf)}</td>
+                    <td>${fmt(r.vetosh)}</td> <td>${fmt(r.ruk)}</td> <td>${fmt(r.stretch)}</td>
+                    <td>${fmt(r.china_pcs)}</td> <td>${fmt(r.china_rub)}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // Aggregates
+                total.allsum += Number(r.allsum);
+                total.gp += Number(r.gp);
+                total.resale += Number(r.resale_rub);
+                total.per += Number(r.per);
+                total.obliv += Number(r.obliv);
+                total.vaf += Number(r.vaf);
+                total.vetosh += Number(r.vetosh);
+                total.ruk += Number(r.ruk);
+                total.stretch += Number(r.stretch);
+                total.china_pcs += Number(r.china_pcs);
+                total.china_rub += Number(r.china_rub);
+            });
+
+            // Total Row
+            const trTotal = document.createElement('tr');
+            trTotal.className = "bg-gray-200 font-bold border-t-2 border-black";
+            trTotal.innerHTML = `
+                 <td class="text-left">ИТОГО</td>
+                 <td>${fmt(total.allsum)}</td> <td>-</td>
+                 <td>${fmt(total.gp)}</td> <td>-</td>
+                 <td>${fmt(total.resale)}</td>
+                 <td>${fmt(total.per)}</td> <td>${fmt(total.obliv)}</td> <td>${fmt(total.vaf)}</td>
+                 <td>${fmt(total.vetosh)}</td> <td>${fmt(total.ruk)}</td> <td>${fmt(total.stretch)}</td>
+                 <td>${fmt(total.china_pcs)}</td> <td>${fmt(total.china_rub)}</td>
+             `;
+            tbody.appendChild(trTotal);
+
+            container.appendChild(table);
+        }
+
+        function takeScreenshot() {
+            const target = document.getElementById('capture-area');
+            html2canvas(target).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `detailed_report_${new Date().toISOString().slice(0, 10)}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

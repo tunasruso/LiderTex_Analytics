@@ -65,23 +65,27 @@ try:
 except Exception:
     PLANS = {}
 
-def get_report_form1(target_date, hour_cutoff):
+def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manager_id=None, custom_start_date=None, is_baseline=False):
     """Optimized: Fetch all data in ONE SQL query + GP + Resale"""
     conn = get_connection()
     cursor = conn.cursor()
     
-    date_start = f"{target_date} 00:00:00"
+    if custom_start_date:
+        date_start = f"{custom_start_date} 00:00:00"
+    else:
+        date_start = f"{target_date} 00:00:00"
+
     date_end = f"{target_date} {hour_cutoff:02d}:00:00"
     
     # Construct Region CASE logic
     region_case = "CASE "
     all_team_ids = []
     
-    for region, ids in REGION_TEAMS.items():
+    for r, ids in REGION_TEAMS.items():
         quoted_ids = [f"'{x}'" for x in ids]
         all_team_ids.extend(quoted_ids)
         ids_in = ",".join(quoted_ids)
-        region_case += f"WHEN teams.id IN ({ids_in}) THEN '{region}' "
+        region_case += f"WHEN teams.id IN ({ids_in}) THEN '{r}' "
     
     # Add Corp team
     region_case += f"WHEN teams.id = '{CORP_TEAM_ID}' THEN 'Отдел корпоративных продаж' "
@@ -89,6 +93,19 @@ def get_report_form1(target_date, hour_cutoff):
     
     # Join all IDs for WHERE clause
     all_ids_str = ",".join(all_team_ids) + f",'{CORP_TEAM_ID}'"
+    
+    # Filters Logic
+    filters = []
+    if manager_id:
+        filters.append(f"users.id = '{manager_id}'")
+    elif team_id:
+        filters.append(f"teams.id = '{team_id}'")
+    elif region and region in REGION_TEAMS:
+        r_ids = REGION_TEAMS[region]
+        r_str = "','".join(r_ids)
+        filters.append(f"teams.id IN ('{r_str}')")
+        
+    filters_sql = " AND " + " AND ".join(filters) if filters else ""
     
     query = f'''
     SELECT 
@@ -141,7 +158,7 @@ def get_report_form1(target_date, hour_cutoff):
     LEFT JOIN teams ON teams.id = users.team_id
     WHERE productsale.deleted = 0
     AND opportunities.deleted = 0
-    AND teams.id IN ({all_ids_str})
+    AND teams.id IN ({all_ids_str}) {filters_sql}
     AND opportunities.sales_stage IN ({STAGES_SQL})
     AND opportunities.id IN (
         SELECT parent_id FROM opportunities_audit 
@@ -157,55 +174,89 @@ def get_report_form1(target_date, hour_cutoff):
     rows = cursor.fetchall()
     conn.close()
     
-    results = {}
-    
     # Process results into dictionary
+    results = {}
     for row in rows:
-        region = row[0]
+        row_region = row[0]
         # Fact values
         fact = {
-            'per': int(row[1] or 0),
-            'obliv': int(row[2] or 0),
-            'vaf': int(row[3] or 0),
-            'vetosh': int(row[4] or 0),
-            'ruk': int(row[5] or 0),
-            'stretch': int(row[6] or 0),
-            'bugs': int(row[7] or 0),
-            'china': int(row[8] or 0),
-            'allsum': int(row[9] or 0),
-            'gp': int(row[10] or 0),  # GP
-            'resale': int(row[11] or 0), # Resale
-            'china_sum': int(row[12] or 0) # China RUB
+            'per': {'fact': int(row[1] or 0)},
+            'obliv': {'fact': int(row[2] or 0)},
+            'vaf': {'fact': int(row[3] or 0)},
+            'vetosh': {'fact': int(row[4] or 0)},
+            'ruk': {'fact': int(row[5] or 0)},
+            'stretch': {'fact': int(row[6] or 0)},
+            'bugs': {'fact': int(row[7] or 0)},
+            'china': {'fact': int(row[8] or 0)},
+            'allsum': {'fact': int(row[9] or 0)},
+            'gp': {'fact': int(row[10] or 0)},  # GP
+            'resale': {'fact': int(row[11] or 0)}, # Resale
+            'china_sum': {'fact': int(row[12] or 0)} # China RUB
         }
         
         # Merge with Plan
-        plan = PLANS.get(region, {})
+        results[row_region] = fact
+    
+    if is_baseline:
+        return results
+    
+    # [NEW] Live Plans Integration
+    from live_plans import LivePlanService
+    svc = LivePlanService()
+    
+    # Parse target_date to datetime
+    dt = datetime.strptime(target_date, "%Y-%m-%d")
+    
+    # Fetch consolidated plans
+    monthly_plans = svc.get_monthly_plans(dt.year, dt.month)
+    
+    # Calculate Remaining Days
+    _, remaining_days = svc.get_remaining_working_days(dt)
+    
+    # [NEW] Fetch YTD Fact (Month Start -> Yesterday) for Daily Plan Baseline
+    yesterday_dt = dt - timedelta(days=1)
+    month_start_dt = dt.replace(day=1)
+    
+    # Global cache for baseline
+    if not hasattr(get_report_form1, "cache"):
+        get_report_form1.cache = {}
         
-        # Calculate Percentages
-        merged = {}
-        for key in fact:
-            f_val = fact[key]
-            p_val = plan.get(key, 0)
-            gp_val = plan.get('gp', 0) if key == 'gp' else 0 # Explicit mapping check
-            
-            # Map keys to plan keys if different names used in plan.json?
-            # Im using same keys in plans.json: revenue (allsum), gp, resale, etc.
-            # Fix keys mismatch:
-            # fact['allsum'] vs plan['revenue']
-            
-            p_val = 0
-            if key == 'allsum': p_val = plan.get('revenue', 0)
-            elif key == 'china_sum': p_val = plan.get('china_sum', 0)
-            else: p_val = plan.get(key, 0)
-            
-            pct = 0
-            if p_val > 0:
-                pct = round((f_val / p_val) * 100, 1)
+    cache_key = (
+        yesterday_dt.strftime("%Y-%m-%d"), 
+        region, team_id, manager_id, 
+        month_start_dt.strftime("%Y-%m-%d")
+    )
+
+    if dt.day > 1:
+        # Check cache
+        if cache_key in get_report_form1.cache:
+            # print(f"DEBUG: Cache HIT for baseline {cache_key}", flush=True)
+            ytd_fact_yesterday = get_report_form1.cache[cache_key]
+        else:
+            # print(f"DEBUG: Cache MISS. Recursively fetching YTD for {region}...", flush=True)
+            try:
+                ytd_fact_yesterday = get_report_form1(
+                    yesterday_dt.strftime("%Y-%m-%d"), 
+                    23, 
+                    region, team_id, manager_id,
+                    custom_start_date=month_start_dt.strftime("%Y-%m-%d"),
+                    is_baseline=True
+                )
+                # Store in cache
+                get_report_form1.cache[cache_key] = ytd_fact_yesterday
+            except Exception as e:
+                print(f"ERROR: YTD Recursion failed: {e}", flush=True)
+                ytd_fact_yesterday = {}
                 
-            merged[key] = {'fact': f_val, 'plan': p_val, 'pct': pct}
-            
-        results[region] = merged
-        
+        if 'Москва' in ytd_fact_yesterday:
+            f = ytd_fact_yesterday['Москва']['allsum']['fact']
+            # print(f"DEBUG: Moscow YTD Fact: {f}", flush=True)
+    else:
+        ytd_fact_yesterday = {}
+    
+    # Enrich with Live Plans & Metrics
+    results = svc.calculate_live_metrics(results, monthly_plans, remaining_days, ytd_fact_yesterday, hour_cutoff)
+    
     return results
 
 def print_form1(data, target_date, hour):
