@@ -16,11 +16,15 @@
         },
         {
             "src": "/details",
-            "dest": "public/details.html"
+            "dest": "api/main.py"
         },
         {
             "src": "/plans",
-            "dest": "public/plans.html"
+            "dest": "api/main.py"
+        },
+        {
+            "src": "/",
+            "dest": "api/main.py"
         },
         {
             "src": "/(.*)",

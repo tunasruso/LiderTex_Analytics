@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детальная Аналитика</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B00;
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --text: #eaeaea;
+            --text-muted: #888;
+            --border: #2a2a4a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        /* Nav Tabs */
+        .nav {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .nav a:hover {
+            color: var(--primary);
+        }
+
+        .nav a.active {
+            color: var(--primary);
+            position: relative;
+        }
+
+        .nav a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -11px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        /* Filter Section */
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            height: 40px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #047857;
+            color: white;
+            margin-left: auto;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        /* Table Styling */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th,
+        td {
+            padding: 10px 12px;
+            text-align: right;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: #0f3460;
+            color: var(--primary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        td {
+            color: var(--text);
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: left;
+            min-width: 250px;
+            font-weight: 600;
+        }
+
+        .totals-row {
+            background: rgba(255, 107, 0, 0.1);
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <nav class="nav">
+            <a href="/">Продажи</a>
+            <a href="/details" class="active">Детализация</a>
+            <a href="/plans">Планы</a>
+        </nav>
+
+        <h1>Детальная Аналитика</h1>
+
+        <!-- FILTERS -->
+        <div class="filters">
+            <div class="filter-group">
+                <label>Дата</label>
+                <input type="date" id="f-date" value="2026-01-26">
+            </div>
+            <div class="filter-group">
+                <label>Час</label>
+                <input type="number" id="f-hour" value="14" min="0" max="23" style="width: 80px;">
+            </div>
+            <div class="filter-group">
+                <label>Регион</label>
+                <select id="f-region">
+                    <option value="">Все регионы</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Отдел</label>
+                <select id="f-team" disabled>
+                    <option value="">Все отделы</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Менеджер</label>
+                <select id="f-manager" disabled>
+                    <option value="">Все менеджеры</option>
+                </select>
+            </div>
+            <button onclick="loadReport()" class="btn btn-primary">ПРИМЕНИТЬ</button>
+            <button onclick="takeScreenshot()" class="btn btn-secondary">📸 СОХРАНИТЬ КАРТИНКУ</button>
+        </div>
+
+        <div id="capture-area" style="background: var(--bg-dark); padding: 10px;">
+            <div id="report-container" class="table-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const fmt = (n) => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+        let hierarchy = {};
+
+        async function init() {
+            try {
+                const res = await fetch('/api/hierarchy');
+                hierarchy = await res.json();
+                const regSel = document.getElementById('f-region');
+                Object.keys(hierarchy).forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r; opt.innerText = r;
+                    regSel.appendChild(opt);
+                });
+                loadReport();
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('f-region').addEventListener('change', function () {
+            const reg = this.value;
+            const teamSel = document.getElementById('f-team');
+            const mgrSel = document.getElementById('f-manager');
+            teamSel.innerHTML = '<option value="">Все отделы</option>';
+            mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+            teamSel.disabled = !reg; mgrSel.disabled = true;
+            if (reg && hierarchy[reg]) {
+                hierarchy[reg].forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id; opt.innerText = t.name;
+                    teamSel.appendChild(opt);
+                });
+            }
+        });
+
+        document.getElementById('f-team').addEventListener('change', function () {
+            const tid = this.value;
+            const reg = document.getElementById('f-region').value;
+            const mgrSel = document.getElementById('f-manager');
+            mgrSel.innerHTML = '<option value="">Все менеджеры</option>';
+            mgrSel.disabled = !tid;
+            if (reg && tid) {
+                const team = hierarchy[reg].find(t => t.id === tid);
+                if (team && team.managers) {
+                    team.managers.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id; opt.innerText = m.name;
+                        mgrSel.appendChild(opt);
+                    });
+                }
+            }
+        });
+
+        async function loadReport() {
+            const date = document.getElementById('f-date').value;
+            const hour = document.getElementById('f-hour').value;
+            const region = document.getElementById('f-region').value;
+            const team = document.getElementById('f-team').value;
+            const manager = document.getElementById('f-manager').value;
+
+            const params = new URLSearchParams({ date, hour });
+            if (region) params.append('region', region);
+            if (team) params.append('team_id', team);
+            if (manager) params.append('manager_id', manager);
+
+            document.getElementById('report-container').innerHTML = '<div class="text-center p-10 opacity-50">Загрузка...</div>';
+
+            try {
+                const res = await fetch(`/api/details?${params.toString()}`);
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Status ${res.status}: ${text}`);
+                }
+                const data = await res.json();
+                renderTable(data);
+            } catch (e) {
+                document.getElementById('report-container').innerHTML = `<div class="p-10 text-red-400">Ошибка: ${e.message}</div>`;
+            }
+        }
+
+        function renderTable(rows) {
+            const container = document.getElementById('report-container');
+            container.innerHTML = '';
+
+            if (rows.length === 0) {
+                container.innerHTML = '<div class="text-center p-10 opacity-50">Нет данных за выбранный период</div>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th rowspan="2">Менеджер / Отдел</th>
+                        <th colspan="2" style="color:#DAEEF3">Выручка</th>
+                        <th colspan="2" style="color:#FDE9D9">ГП</th>
+                        <th colspan="1" style="color:#DDD9C4">Перекуп</th>
+                        <th colspan="3">П / О / В</th>
+                        <th colspan="3">В / Р / С</th>
+                        <th colspan="2">Китай</th>
+                    </tr>
+                    <tr>
+                        <th>Факт</th> <th>План</th>
+                        <th>Факт</th> <th>План</th>
+                        <th>Факт</th>
+                        <th>Перч</th> <th>Облив</th> <th>Вафля</th>
+                        <th>Ветошь</th> <th>Рук</th> <th>Стрейч</th>
+                        <th>Шт</th> <th>Руб</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            const tbody = table.querySelector('tbody');
+            let total = { allsum: 0, gp: 0, resale: 0, per: 0, obliv: 0, vaf: 0, vetosh: 0, ruk: 0, stretch: 0, china_pcs: 0, china_rub: 0 };
+
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="font-bold">${r.manager_name}</div>
+                        <div class="text-[10px] opacity-50 truncate w-60">${r.team_name}</div>
+                    </td>
+                    <td class="font-bold">${fmt(r.allsum)}</td> <td class="opacity-30 text-xs">0</td>
+                    <td>${fmt(r.gp)}</td> <td class="opacity-30 text-xs">0</td>
+                    <td>${fmt(r.resale_rub)}</td>
+                    <td>${fmt(r.per)}</td> <td>${fmt(r.obliv)}</td> <td>${fmt(r.vaf)}</td>
+                    <td>${fmt(r.vetosh)}</td> <td>${fmt(r.ruk)}</td> <td>${fmt(r.stretch)}</td>
+                    <td>${fmt(r.china_pcs)}</td> <td>${fmt(r.china_rub)}</td>
+                `;
+                tbody.appendChild(tr);
+
+                total.allsum += Number(r.allsum);
+                total.gp += Number(r.gp);
+                total.resale += Number(r.resale_rub);
+                total.per += Number(r.per);
+                total.obliv += Number(r.obliv);
+                total.vaf += Number(r.vaf);
+                total.vetosh += Number(r.vetosh);
+                total.ruk += Number(r.ruk);
+                total.stretch += Number(r.stretch);
+                total.china_pcs += Number(r.china_pcs);
+                total.china_rub += Number(r.china_rub);
+            });
+
+            const trTotal = document.createElement('tr');
+            trTotal.className = "totals-row";
+            trTotal.innerHTML = `
+                 <td>ИТОГО</td>
+                 <td>${fmt(total.allsum)}</td> <td>-</td>
+                 <td>${fmt(total.gp)}</td> <td>-</td>
+                 <td>${fmt(total.resale)}</td>
+                 <td>${fmt(total.per)}</td> <td>${fmt(total.obliv)}</td> <td>${fmt(total.vaf)}</td>
+                 <td>${fmt(total.vetosh)}</td> <td>${fmt(total.ruk)}</td> <td>${fmt(total.stretch)}</td>
+                 <td>${fmt(total.china_pcs)}</td> <td>${fmt(total.china_rub)}</td>
+             `;
+            tbody.appendChild(trTotal);
+            container.appendChild(table);
+        }
+
+        function takeScreenshot() {
+            const target = document.getElementById('capture-area');
+            html2canvas(target, { backgroundColor: '#1a1a2e' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `detailed_report_${new Date().toISOString().slice(0, 10)}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

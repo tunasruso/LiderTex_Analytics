@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import HTMLResponse
+import secrets
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -33,13 +36,48 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_headers=["*"],
 )
+
+security = HTTPBasic()
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, "lider_viewer")
+    correct_password = secrets.compare_digest(credentials.password, "LiderReadOnly2026")
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+
+# --- HTML Serving (Protected) ---
+def get_template(filename: str):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(base_dir, "templates", filename)
+    with open(template_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index(username: str = Depends(verify_credentials)):
+    return get_template("index.html")
+
+@app.get("/details", response_class=HTMLResponse)
+async def serve_details(username: str = Depends(verify_credentials)):
+    return get_template("details.html")
+
+@app.get("/plans", response_class=HTMLResponse)
+async def serve_plans(username: str = Depends(verify_credentials)):
+    return get_template("plans.html")
 
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
 
-@app.get("/api/debug-env")
+@app.get("/api/debug-env", dependencies=[Depends(verify_credentials)])
 def debug_env():
     import pymysql
     import psycopg2
@@ -65,7 +103,7 @@ def debug_env():
 
 # --- Reports Endpoints (from original app.py) ---
 
-@app.get("/api/data")
+@app.get("/api/data", dependencies=[Depends(verify_credentials)])
 async def get_data(hour: int = 14, region: str = None, team_id: str = None, manager_id: str = None, date: str = None):
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
@@ -92,14 +130,14 @@ async def get_data(hour: int = 14, region: str = None, team_id: str = None, mana
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/hierarchy")
+@app.get("/api/hierarchy", dependencies=[Depends(verify_credentials)])
 async def get_hierarchy():
     try:
         return reports_detailed.get_hierarchy()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/details")
+@app.get("/api/details", dependencies=[Depends(verify_credentials)])
 async def get_details(region: str=None, team_id: str=None, manager_id: str=None, date: str=None, hour: int=14):
     if not date: 
         date = datetime.now().strftime("%Y-%m-%d")
@@ -108,7 +146,7 @@ async def get_details(region: str=None, team_id: str=None, manager_id: str=None,
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/plans")
+@app.get("/api/plans", dependencies=[Depends(verify_credentials)])
 async def get_plans(year: int = None, month: int = None):
     now = datetime.now()
     if not year: year = now.year
@@ -118,7 +156,7 @@ async def get_plans(year: int = None, month: int = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/daily-plans")
+@app.get("/api/daily-plans", dependencies=[Depends(verify_credentials)])
 async def get_daily_plans(date: str = None):
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
@@ -127,7 +165,7 @@ async def get_daily_plans(date: str = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/excel-plans/territories")
+@app.get("/api/excel-plans/territories", dependencies=[Depends(verify_credentials)])
 async def get_excel_territories_plans(year: int = None, month: int = None, region: str = None):
     now = datetime.now()
     if not year: year = now.year
@@ -137,7 +175,7 @@ async def get_excel_territories_plans(year: int = None, month: int = None, regio
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/excel-plans/warehouses")
+@app.get("/api/excel-plans/warehouses", dependencies=[Depends(verify_credentials)])
 async def get_excel_warehouses_plans(year: int = None, month: int = None, region: str = None):
     now = datetime.now()
     if not year: year = now.year
@@ -147,7 +185,7 @@ async def get_excel_warehouses_plans(year: int = None, month: int = None, region
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/hourly-analytics")
+@app.get("/api/hourly-analytics", dependencies=[Depends(verify_credentials)])
 async def get_hourly_analytics_endpoint(date: str = None):
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
