@@ -250,16 +250,15 @@ def get_actual_sales_ytd(date_obj: datetime):
     return facts_by_region_cat
 
 
-def calculate_daily_target(total_monthly_plan, total_fact_ytd, remaining_days):
+def calculate_daily_target(total_monthly_plan, total_working_days):
     """
-    Dynamic Daily Target = (Total Plan - Fact YTD) / Remaining Days
+    Static Daily Target = Total Plan / Total Working Days
+    Requested by user to avoid huge jumps at month end.
     """
-    if remaining_days <= 0:
+    if total_working_days <= 0:
         return 0
-    
-    gap = total_monthly_plan - total_fact_ytd
-    # If overachieved, gap is negative -> daily plan is negative (surplus).
-    return int(gap / remaining_days)
+        
+    return int(total_monthly_plan / total_working_days)
 
 
 REPORT_REGION_NAMES = {
@@ -362,10 +361,10 @@ def get_daily_plans_breakdown(date_str):
             # Fact GP Fallback
             cat_fact_gp = c_fact['gp']
             
-            # 3. Daily Target (Dynamic Catch Up)
-            d_rev = calculate_daily_target(cat_plan_rev, cat_fact_rev, remaining_days)
-            d_gp = calculate_daily_target(cat_plan_gp, cat_fact_gp, remaining_days)
-            d_qty = calculate_daily_target(cat_plan_qty, cat_fact_qty, remaining_days)
+            # 3. Daily Target (Static)
+            d_rev = calculate_daily_target(cat_plan_rev, total_days)
+            d_gp = calculate_daily_target(cat_plan_gp, total_days)
+            d_qty = calculate_daily_target(cat_plan_qty, total_days)
             
             category_daily_targets[cat] = d_rev
             category_daily_targets_gp[cat] = d_gp
@@ -382,7 +381,7 @@ def get_daily_plans_breakdown(date_str):
         # User's Manual Calculation (6.4M for Msk) matches the sum of Own Production categories only.
         # It EXCLUDES Resale, China, and Bags (Commodities).
         # To match the user's report, we calculate Total as Sum of Own Prod components.
-        OWN_PROD_CATS = ['per', 'obliv', 'vaf', 'vetosh', 'ruk', 'stretch', 'bugs']
+        OWN_PROD_CATS = ['per', 'obliv', 'vaf', 'vetosh', 'ruk', 'stretch']
         
         reg_daily_rev_sum = 0
         reg_daily_gp_sum = 0
