@@ -60,7 +60,9 @@ def get_connection():
 
 # Новый функционал: планы и ГП (Step 843)
 try:
-    with open('plans.json', 'r', encoding='utf-8') as f:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    plans_path = os.path.join(current_dir, 'plans.json')
+    with open(plans_path, 'r', encoding='utf-8') as f:
         PLANS = json.load(f)
 except Exception:
     PLANS = {}
