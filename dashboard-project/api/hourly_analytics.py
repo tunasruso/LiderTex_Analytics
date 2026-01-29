@@ -42,13 +42,13 @@ def get_day_facts_with_timing(date_str: str) -> List[Dict]:
         productsale.amount - (productsale.count * COALESCE(product.cost, 0)) as gp,
         productsale.count as count,
         MIN(opportunities_audit.date_created) as won_time
-    FROM opportunities
-    INNER JOIN productsale ON productsale.opportunity_id = opportunities.id 
-    INNER JOIN product ON productsale.product_id = product.id 
-    INNER JOIN productcat ON productcat.id = product.category_id 
-    LEFT JOIN users ON users.id = opportunities.assigned_user_id
-    LEFT JOIN teams ON teams.id = users.team_id
-    INNER JOIN opportunities_audit ON opportunities_audit.parent_id = opportunities.id
+    FROM mart.opportunities
+    INNER JOIN mart.productsale ON productsale.opportunity_id = opportunities.id 
+    INNER JOIN mart.product ON productsale.product_id = product.id 
+    INNER JOIN mart.productcat ON productcat.id = product.category_id 
+    LEFT JOIN mart.users ON users.id = opportunities.assigned_user_id
+    LEFT JOIN mart.teams ON teams.id = users.team_id
+    INNER JOIN mart.opportunities_audit ON opportunities_audit.parent_id = opportunities.id
     WHERE 
         opportunities.deleted = 0
         AND productsale.deleted = 0

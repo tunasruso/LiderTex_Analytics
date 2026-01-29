@@ -66,7 +66,7 @@ class LivePlanService:
     def get_working_days(self, year, month):
         """Returns list of status codes (1=Work, 2=Holiday) for the month"""
         with self.conn.cursor() as cursor:
-            cursor.execute(f"SELECT days FROM gr_workdays WHERE year='{year}' AND month='{month}'")
+            cursor.execute(f"SELECT days FROM raw.gr_workdays WHERE year='{year}' AND month='{month}'")
             row = cursor.fetchone()
             if row:
                 return [int(x) for x in row[0].split(',')]
@@ -110,9 +110,9 @@ class LivePlanService:
             u.team_id,
             pi.category_id, 
             SUM(pi.plan) as total_plan
-        FROM gr_payrol p
-        JOIN users u ON u.id = p.assigned_user_id
-        JOIN gr_payrol_items pi ON pi.salary_id = p.id
+        FROM raw.gr_payrol p
+        JOIN mart.users u ON u.id = p.assigned_user_id
+        JOIN raw.gr_payrol_items pi ON pi.salary_id = p.id
         WHERE p.year = '{year}' AND p.month = '{month}'
         AND p.deleted = 0
         GROUP BY u.team_id, pi.category_id
