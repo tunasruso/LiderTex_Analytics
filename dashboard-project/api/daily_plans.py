@@ -159,7 +159,8 @@ def get_actual_sales_ytd(date_obj: datetime):
     Returns: {region: {'revenue': float, 'gp': float}}
     """
     month_start = date_obj.replace(day=1).strftime('%Y-%m-%d 00:00:00')
-    yesterday_end = (date_obj - timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
+    # Include today up to very now
+    yesterday_end = date_obj.strftime('%Y-%m-%d 23:59:59')
     
     if date_obj.day == 1:
         return {}
@@ -212,7 +213,7 @@ def get_actual_sales_ytd(date_obj: datetime):
     rows = cursor.fetchall()
     conn.close()
     
-    facts_by_region_cat = {}
+    facts_by_region_cat = {} # {region: {cat_key: {revenue, gp, qty}, 'own_prod': {...}, 'resale': {...}}}
     
     for row in rows:
         team = row['team_name']
@@ -239,19 +240,29 @@ def get_actual_sales_ytd(date_obj: datetime):
              # Normalize Region Name
              region_norm = REPORT_REGION_NAMES.get(region.upper(), region)
              
-             # 2. Map Product -> Category
-             cat_key = category_mapping.determine_category(row)
-             if not cat_key: continue
-             
              if region_norm not in facts_by_region_cat:
-                facts_by_region_cat[region_norm] = {} # {cat: {rev, gp, qty}}
-            
-             if cat_key not in facts_by_region_cat[region_norm]:
-                 facts_by_region_cat[region_norm][cat_key] = {'revenue': 0.0, 'gp': 0.0, 'qty': 0.0}
+                 facts_by_region_cat[region_norm] = {
+                     'own_prod': {'revenue': 0.0, 'gp': 0.0, 'qty': 0.0},
+                     'resale': {'revenue': 0.0, 'gp': 0.0, 'qty': 0.0}
+                 }
+             
+             # Track aggregates for summary row
+             if row['own_prod'] == 1:
+                 facts_by_region_cat[region_norm]['own_prod']['revenue'] += rev
+                 facts_by_region_cat[region_norm]['own_prod']['gp'] += gp
+             else:
+                 facts_by_region_cat[region_norm]['resale']['revenue'] += rev
+                 facts_by_region_cat[region_norm]['resale']['gp'] += gp
+
+             # Track specific category for breakdown
+             cat_key = category_mapping.determine_category(row)
+             if cat_key:
+                 if cat_key not in facts_by_region_cat[region_norm]:
+                     facts_by_region_cat[region_norm][cat_key] = {'revenue': 0.0, 'gp': 0.0, 'qty': 0.0}
                  
-             facts_by_region_cat[region_norm][cat_key]['revenue'] += rev
-             facts_by_region_cat[region_norm][cat_key]['gp'] += gp
-             facts_by_region_cat[region_norm][cat_key]['qty'] += qty
+                 facts_by_region_cat[region_norm][cat_key]['revenue'] += rev
+                 facts_by_region_cat[region_norm][cat_key]['gp'] += gp
+                 facts_by_region_cat[region_norm][cat_key]['qty'] += qty
         
     return facts_by_region_cat
 
@@ -345,10 +356,15 @@ def get_daily_plans_breakdown(date_str):
         # Summing up granular categories (per, obliv, china...) causes Double Counting
         # because those categories are subsets of Own Prod or Resale.
         
-        # 1. Ensure we calculate 'own_prod' even if not displayed
+        # [FIX] User's summary row for Siberia-Ural (66.7M) matches 
+        # Plan['own_prod'] + Plan['resale'].
+        # Even if individual categories (per, obliv) are present, 
+        # the user uses these aggregates for the main total.
         calc_cats = list(display_cats)
         if 'own_prod' not in calc_cats:
             calc_cats.append('own_prod')
+        if 'resale' not in calc_cats:
+            calc_cats.append('resale')
             
         category_daily_targets = {} # For Revenue
         category_daily_targets_gp = {} # For GP
@@ -386,22 +402,21 @@ def get_daily_plans_breakdown(date_str):
                 result['daily_totals'][region][cat] = d_rev 
                 result['daily_totals'][region][f"{cat}_gp"] = d_gp
 
-        # [FIX] Regional Total Logic for User Alignment
-        # User's Manual Calculation (6.4M for Msk) matches the sum of Own Production categories only.
-        # It EXCLUDES Resale, China, and Bags (Commodities).
-        # To match the user's report, we calculate Total as Sum of Own Prod components.
-        OWN_PROD_CATS = ['per', 'obliv', 'vaf', 'vetosh', 'ruk', 'stretch']
+        # [FIX] Monthly Plan Total according to user = Own Prod + Resale
+        reg_total_plan = p_data['categories'].get('own_prod', 0) + p_data['categories'].get('resale', 0)
+        reg_total_fact = r_facts.get('own_prod', {}).get('revenue', 0) + r_facts.get('resale', {}).get('revenue', 0)
+        reg_total_fact_gp = r_facts.get('own_prod', {}).get('gp', 0) + r_facts.get('resale', {}).get('gp', 0)
         
-        reg_daily_rev_sum = 0
-        reg_daily_gp_sum = 0
-        
-        for cat in OWN_PROD_CATS:
-            reg_daily_rev_sum += category_daily_targets.get(cat, 0)
-            reg_daily_gp_sum += category_daily_targets_gp.get(cat, 0)
+        # Calculate Daily Target for this combined Total
+        reg_daily_rev_target = calculate_daily_target(reg_total_plan, reg_total_fact, remaining_days)
+        # Note: GP Plan is usually not aggregated as 'own_prod' in excel, we might need a fallback.
+        # But we can sum up category GP plans.
+        cats_gp_plan = p_data['categories_gp'].get('own_prod', 0) + p_data['categories_gp'].get('resale', 0)
+        reg_daily_gp_target = calculate_daily_target(cats_gp_plan, reg_total_fact_gp, remaining_days)
 
-        # Set Regional Totals (Own Production Only)
-        result['daily_totals'][region]['revenue'] = reg_daily_rev_sum
-        result['daily_totals'][region]['gp'] = reg_daily_gp_sum
+        # Set Regional Totals
+        result['daily_totals'][region]['revenue'] = reg_daily_rev_target
+        result['daily_totals'][region]['gp'] = reg_daily_gp_target
             
         # Hourly Dist
         dist_key = REGION_DIST_MAP.get(region, 'Default')
