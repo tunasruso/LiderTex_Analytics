@@ -190,12 +190,12 @@ def get_actual_sales_ytd(date_obj: datetime):
         productsale.amount as revenue,
         productsale.count as count,
         productsale.amount - (productsale.count * COALESCE(product.price_in1, 0)) as gp
-    FROM mart.opportunities
-    INNER JOIN mart.productsale ON productsale.opportunity_id = opportunities.id
-    INNER JOIN mart.product ON productsale.product_id = product.id 
-    LEFT JOIN mart.productcat ON productcat.id = product.category_id
-    LEFT JOIN mart.users ON users.id = opportunities.assigned_user_id
-    LEFT JOIN mart.teams ON teams.id = users.team_id
+    FROM raw.opportunities
+    INNER JOIN raw.productsale ON productsale.opportunity_id = opportunities.id
+    INNER JOIN raw.product ON productsale.product_id = product.id 
+    LEFT JOIN raw.productcat ON productcat.id = product.category_id
+    LEFT JOIN raw.users ON users.id = opportunities.assigned_user_id
+    LEFT JOIN raw.teams ON teams.id = users.team_id
     WHERE 
         opportunities.deleted = 0
         AND productsale.deleted = 0

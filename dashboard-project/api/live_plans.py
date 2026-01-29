@@ -111,7 +111,7 @@ class LivePlanService:
             pi.category_id, 
             SUM(pi.plan) as total_plan
         FROM raw.gr_payrol p
-        JOIN mart.users u ON u.id = p.assigned_user_id
+        JOIN raw.users u ON u.id = p.assigned_user_id
         JOIN raw.gr_payrol_items pi ON pi.salary_id = p.id
         WHERE p.year = '{year}' AND p.month = '{month}'
         AND p.deleted = 0

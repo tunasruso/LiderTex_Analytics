@@ -33,11 +33,11 @@ def get_hierarchy():
     
     # Select Teams
     ids_str = "','".join(all_team_ids)
-    cursor.execute(f"SELECT id, name FROM mart.teams WHERE id IN ('{ids_str}')")
+    cursor.execute(f"SELECT id, name FROM raw.teams WHERE id IN ('{ids_str}')")
     teams_map = {row['id']: row['name'] for row in cursor.fetchall()}
     
     # Select Users for these teams
-    cursor.execute(f"SELECT id, team_id, first_name, last_name FROM mart.users WHERE team_id IN ('{ids_str}') AND deleted=0 AND status='Active'")
+    cursor.execute(f"SELECT id, team_id, first_name, last_name FROM raw.users WHERE team_id IN ('{ids_str}') AND deleted=0 AND status='Active'")
     users_rows = cursor.fetchall()
     conn.close()
     
@@ -81,7 +81,7 @@ def get_detailed_report(date, hour, region=None, team_id=None, manager_id=None):
     # Audit Logic (Time Travel)
     audit_subquery = f"""
     opportunities.id IN (
-        SELECT parent_id FROM mart.opportunities_audit 
+        SELECT parent_id FROM raw.opportunities_audit 
         WHERE opportunities_audit.parent_id = opportunities.id 
         AND opportunities_audit.date_created BETWEEN '{date_start}' AND '{date_end}'
         AND opportunities_audit.after_value_string IN ({TARGET_STAGES_SQL})
@@ -131,12 +131,12 @@ def get_detailed_report(date, hour, region=None, team_id=None, manager_id=None):
         SUM(productsale.amount) AS allsum,
         SUM(productsale.amount - (productsale.count * COALESCE(product.cost, 0))) as gp
         
-    FROM mart.opportunities
-    INNER JOIN mart.productsale ON productsale.opportunity_id = opportunities.id 
-    INNER JOIN mart.product ON productsale.product_id = product.id 
-    INNER JOIN mart.productcat ON productcat.id = product.category_id 
-    LEFT JOIN mart.users ON users.id = opportunities.assigned_user_id
-    LEFT JOIN mart.teams ON teams.id = users.team_id
+    FROM raw.opportunities
+    INNER JOIN raw.productsale ON productsale.opportunity_id = opportunities.id 
+    INNER JOIN raw.product ON productsale.product_id = product.id 
+    INNER JOIN raw.productcat ON productcat.id = product.category_id 
+    LEFT JOIN raw.users ON users.id = opportunities.assigned_user_id
+    LEFT JOIN raw.teams ON teams.id = users.team_id
     WHERE {where_sql}
     GROUP BY teams.name, manager_name
     ORDER BY teams.name, manager_name
