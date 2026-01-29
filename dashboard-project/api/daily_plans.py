@@ -109,14 +109,19 @@ def get_monthly_plans(year, month):
     plans_by_region = {}
     
     for item in excel_data['data']:
-        region = item['region']
+        raw_region = item['region']
+        if not raw_region: raw_region = 'Команда без региона'
+        
+        # Normalize Region Name
+        region = REPORT_REGION_NAMES.get(raw_region.upper(), raw_region)
+        
         if region not in plans_by_region:
             plans_by_region[region] = {
                 'total_target': 0.0,
                 'total_target_gp': 0.0,
                 'categories': {},
                 'categories_gp': {},
-                'categories_qty': {} # [NEW] Capture Quantity
+                'categories_qty': {} 
             }
             
         for group, metrics in item['products'].items():
@@ -126,7 +131,7 @@ def get_monthly_plans(year, month):
             )
             revenue = metrics.get('revenue', 0)
             gp = metrics.get('gp', 0)
-            qty = metrics.get('quantity', 0) # [NEW]
+            qty = metrics.get('quantity', 0)
             
             # Aggregate GP from ALL categories (since aggregates like 'resale' have 0 GP in excel)
             plans_by_region[region]['total_target_gp'] += gp
@@ -138,7 +143,7 @@ def get_monthly_plans(year, month):
                 plans_by_region[region]['categories_gp'][key] = \
                     plans_by_region[region]['categories_gp'].get(key, 0) + gp
                 plans_by_region[region]['categories_qty'][key] = \
-                    plans_by_region[region]['categories_qty'].get(key, 0) + qty # [NEW]
+                    plans_by_region[region]['categories_qty'].get(key, 0) + qty
             
             # Add to TOTAL TARGET Revenue only 'resale' and 'own_prod'
             # Note: User defined Plan = Resale + Nash Tovar (own_prod)
@@ -222,7 +227,7 @@ def get_actual_sales_ytd(date_obj: datetime):
         if not region:
             # Fallback heuristic
             t_upper = team.upper()
-            if 'МОСКВА' in t_upper or '214' in t_upper or '230' in t_upper or 'КОРПОРАТ' in t_upper or 'ПОДДЕРЖК' in t_upper: 
+            if 'МОСКВА' in t_upper or '214' in t_upper: 
                 region = 'Москва'
             elif 'СЕВЕРО-ЗАПАД' in t_upper or 'ПЕТЕРБУРГ' in t_upper: region = 'Северо-Запад'
             elif 'ПОВОЛЖЬЕ' in t_upper: region = 'Поволжье'
@@ -251,15 +256,18 @@ def get_actual_sales_ytd(date_obj: datetime):
     return facts_by_region_cat
 
 
-def calculate_daily_target(total_monthly_plan, total_working_days):
+def calculate_daily_target(total_monthly_plan, fact_ytd, remaining_working_days):
     """
-    Static Daily Target = Total Plan / Total Working Days
-    Requested by user to avoid huge jumps at month end.
+    Catch Up Daily Target = (Total Plan - Fact YTD) / Remaining Working Days
+    This ensures we reach the monthly goal by adjusting for past performance.
     """
-    if total_working_days <= 0:
+    if remaining_working_days <= 0:
         return 0
         
-    return int(total_monthly_plan / total_working_days)
+    gap = total_monthly_plan - fact_ytd
+    # Return 0 if gap is met? No, user wants to see surplus/deficit.
+    # Current request: (Plan - Fact) / Rem
+    return int(gap / remaining_working_days)
 
 
 REPORT_REGION_NAMES = {
@@ -362,10 +370,10 @@ def get_daily_plans_breakdown(date_str):
             # Fact GP Fallback
             cat_fact_gp = c_fact['gp']
             
-            # 3. Daily Target (Static)
-            d_rev = calculate_daily_target(cat_plan_rev, total_days)
-            d_gp = calculate_daily_target(cat_plan_gp, total_days)
-            d_qty = calculate_daily_target(cat_plan_qty, total_days)
+            # 3. Daily Target (Catch Up)
+            d_rev = calculate_daily_target(cat_plan_rev, cat_fact_rev, remaining_days)
+            d_gp = calculate_daily_target(cat_plan_gp, cat_fact_gp, remaining_days)
+            d_qty = calculate_daily_target(cat_plan_qty, cat_fact_qty, remaining_days)
             
             category_daily_targets[cat] = d_rev
             category_daily_targets_gp[cat] = d_gp
