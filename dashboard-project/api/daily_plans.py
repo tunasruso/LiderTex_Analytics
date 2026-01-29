@@ -222,7 +222,8 @@ def get_actual_sales_ytd(date_obj: datetime):
         if not region:
             # Fallback heuristic
             t_upper = team.upper()
-            if 'МОСКВА' in t_upper or '214' in t_upper: region = 'Москва'
+            if 'МОСКВА' in t_upper or '214' in t_upper or '230' in t_upper or 'КОРПОРАТ' in t_upper or 'ПОДДЕРЖК' in t_upper: 
+                region = 'Москва'
             elif 'СЕВЕРО-ЗАПАД' in t_upper or 'ПЕТЕРБУРГ' in t_upper: region = 'Северо-Запад'
             elif 'ПОВОЛЖЬЕ' in t_upper: region = 'Поволжье'
             elif 'ЦЕНТР' in t_upper: region = 'Центр'
