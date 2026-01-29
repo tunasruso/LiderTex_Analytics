@@ -281,18 +281,31 @@ def get_daily_plans_breakdown(date_str):
     
     # 1. Get Monthly Plans (Target & Breakdown)
     monthly_data = get_monthly_plans(year, month)
+    total_month_plan = sum(r.get('total_target', 0) for r in monthly_data.values())
     
     # 2. Get Dates
     total_days, remaining_days = get_remaining_working_days(date_obj)
     
     # 3. Get Facts
     facts_ytd = get_actual_sales_ytd(date_obj)
+    total_fact_ytd = sum(
+        sum(c.get('revenue', 0) for c in r.values()) 
+        for r in facts_ytd.values()
+    )
     
     result = {
         'date': date_str,
         'metadata': {
             'total_working_days': total_days,
-            'remaining_working_days': remaining_days
+            'remaining_working_days': remaining_days,
+            'debug': {
+                'total_month_plan': int(total_month_plan),
+                'total_fact_ytd': int(total_fact_ytd),
+                'remaining_days': remaining_days,
+                'db_host': POSTGRES_CONFIG.get('host', 'unknown'),
+                'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'input_date': date_str
+            }
         },
         'hourly_breakdown': {},
         'daily_totals': {}
