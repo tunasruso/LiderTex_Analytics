@@ -1,5 +1,4 @@
 import psycopg2
-import pymysql
 from datetime import datetime, timedelta
 import sys
 import os
@@ -7,27 +6,31 @@ from typing import Dict, List, Any
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from api.config_prod import POSTGRES_CONFIG, DB_CONFIG
+from api.config_prod import POSTGRES_CONFIG
 from api.reports_3forms import TARGET_STAGES
 import api.daily_plans as daily_plans
 import api.excel_plans_report as excel_plans_report
 import api.category_mapping as category_mapping
 
-def get_mysql_conn():
-    return pymysql.connect(**DB_CONFIG)
+from psycopg2.extras import RealDictCursor
+
+def get_postgres_conn():
+    return psycopg2.connect(**POSTGRES_CONFIG)
 
 def get_day_facts_with_timing(date_str: str) -> List[Dict]:
     """
     Get all sales for the day with the timestamp of when they entered the target stage.
     Uses category_mapping for proper category identification.
+    Uses Postgres.
     """
-    conn = get_mysql_conn()
-    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    conn = get_postgres_conn()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     date_start = f"{date_str} 00:00:00"
     date_end = f"{date_str} 23:59:59"
     target_stages_str = ",".join([f"'{s}'" for s in TARGET_STAGES])
     
+    # Replaced MySQL IFNULL -> Postgres COALESCE
     query = f"""
     SELECT 
         teams.name as team_name,
@@ -36,7 +39,7 @@ def get_day_facts_with_timing(date_str: str) -> List[Dict]:
         productcat.id as cat_id,
         productcat.parent_category_id as parent_cat_id,
         productsale.amount as revenue,
-        productsale.amount - (productsale.count * IFNULL(product.cost, 0)) as gp,
+        productsale.amount - (productsale.count * COALESCE(product.cost, 0)) as gp,
         productsale.count as count,
         MIN(opportunities_audit.date_created) as won_time
     FROM opportunities
@@ -52,7 +55,7 @@ def get_day_facts_with_timing(date_str: str) -> List[Dict]:
         AND opportunities_audit.date_created BETWEEN '{date_start}' AND '{date_end}'
         AND opportunities_audit.after_value_string IN ({target_stages_str})
         AND (opportunities_audit.before_value_string NOT IN ({target_stages_str}) OR opportunities_audit.before_value_string IS NULL)
-    GROUP BY productsale.id
+    GROUP BY productsale.id, teams.name, product.id, product.own_prod, productcat.id, productcat.parent_category_id, productsale.amount, productsale.count, product.cost
     """
     
     cursor.execute(query)

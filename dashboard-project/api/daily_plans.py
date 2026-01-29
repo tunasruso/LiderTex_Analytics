@@ -5,7 +5,7 @@ Calculates daily plan breakdown by hour using regional distribution curves
 and Dynamic Daily Target logic: (Monthly Plan - Fact) / Remaining Days
 """
 import psycopg2
-import pymysql
+from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import calendar
 import sys
@@ -13,7 +13,7 @@ import os
 from typing import Dict, List, Any
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from api.config_prod import POSTGRES_CONFIG, DB_CONFIG
+from api.config_prod import POSTGRES_CONFIG
 from api.reports_3forms import TARGET_STAGES
 import api.excel_plans_report as excel_plans_report
 import api.category_mapping as category_mapping
@@ -167,12 +167,11 @@ def get_actual_sales_ytd(date_obj: datetime):
     
     team_to_region = {row[0]: row[1] for row in mapping_rows}
     
-    # 2. Fetch Facts from MySQL
-    conn = pymysql.connect(**DB_CONFIG)
-    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    # 2. Fetch Facts from Postgres
+    conn = psycopg2.connect(**POSTGRES_CONFIG)
+    cursor = conn.cursor(cursor_factory=RealDictCursor) # Use RealDictCursor
     
-    # [FIX] Include 'Closed Lost performance' to match User's Fact data (approx +16M for Msk)
-    # This reduces the Remaining Gap and lowers the Daily Target.
+    # [FIX] Include 'Closed Lost performance'
     search_stages = list(TARGET_STAGES)
     if 'Closed Lost performance' not in search_stages:
         search_stages.append('Closed Lost performance')
@@ -180,7 +179,7 @@ def get_actual_sales_ytd(date_obj: datetime):
     stages_str = ",".join([f"'{s}'" for s in search_stages])
     
     # Use price_in1 as Cost for GP calculation
-    # Fetch detailed rows to categorize in Python
+    # Replaced MySQL IFNULL -> COALESCE
     query = f"""
     SELECT 
         teams.name as team_name,
@@ -190,7 +189,7 @@ def get_actual_sales_ytd(date_obj: datetime):
         productcat.parent_category_id as parent_cat_id,
         productsale.amount as revenue,
         productsale.count as count,
-        productsale.amount - (productsale.count * IFNULL(product.price_in1, 0)) as gp
+        productsale.amount - (productsale.count * COALESCE(product.price_in1, 0)) as gp
     FROM opportunities
     INNER JOIN productsale ON productsale.opportunity_id = opportunities.id
     INNER JOIN product ON productsale.product_id = product.id 

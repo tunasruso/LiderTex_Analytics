@@ -7,12 +7,19 @@
 - Корпоративные продажи отдельно
 """
 
-import pymysql
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import json
 from datetime import datetime, timedelta
 import argparse
+import sys
+import os
 
-from api.config_prod import DB_CONFIG, CORP_TEAM_ID
+# Ensure api module is found
+if __package__ is None:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from api.config_prod import POSTGRES_CONFIG, CORP_TEAM_ID
 
 # Строгий маппинг команд (User provided)
 REGION_TEAMS = {
@@ -55,7 +62,7 @@ TARGET_STAGES = [
 STAGES_SQL = "'" + "','".join(TARGET_STAGES) + "'"
 
 def get_connection():
-    return pymysql.connect(**DB_CONFIG)
+    return psycopg2.connect(**POSTGRES_CONFIG)
 
 
 # Новый функционал: планы и ГП (Step 843)
@@ -68,8 +75,11 @@ except Exception:
     PLANS = {}
 
 def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manager_id=None, custom_start_date=None, is_baseline=False):
-    """Optimized: Fetch all data in ONE SQL query + GP + Resale"""
+    """Optimized: Fetch all data in ONE SQL query + GP + Resale from POSTGRES"""
     conn = get_connection()
+    # Postgres returns tuples by default, usually we want dicts for easier handling
+    # but here logic parses tuples or needs adaptation. 
+    # The original code accesses row[0], row[1], etc. so tuples are fine.
     cursor = conn.cursor()
     
     if custom_start_date:
@@ -109,48 +119,57 @@ def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manage
         
     filters_sql = " AND " + " AND ".join(filters) if filters else ""
     
+    # Replaced MySQL IF -> Postgres CASE WHEN
+    # Replaced MySQL IFNULL -> Postgres COALESCE
     query = f'''
     SELECT 
         {region_case} as region_name,
         
         -- Existing Categories (Count)
-        SUM(IF(productcat.id IN ('42ac50da-efa0-9baa-51cc-50efc73a1fc6','3fb2004f-ffe1-67b3-d797-65aa1f509de3','8d432105-5ecf-3fc7-8242-62b32dc497e8','f35511c6-0a8c-6ece-02cb-62b32d67dbf4') 
-            OR productcat.parent_category_id IN ('42ac50da-efa0-9baa-51cc-50efc73a1fc6','3fb2004f-ffe1-67b3-d797-65aa1f509de3','8d432105-5ecf-3fc7-8242-62b32dc497e8','f35511c6-0a8c-6ece-02cb-62b32d67dbf4'), 
-            productsale.count, 0)) AS per,
-        SUM(IF(productcat.id IN ('b7ece599-c211-52fd-2f30-5c21f1a851ca','bf4581e7-681a-75ce-2796-62baa764dcf7','d716ff1c-96e4-3451-f8a8-50efe14e851e') 
-            OR productcat.parent_category_id IN ('b7ece599-c211-52fd-2f30-5c21f1a851ca','bf4581e7-681a-75ce-2796-62baa764dcf7','d716ff1c-96e4-3451-f8a8-50efe14e851e'), 
-            productsale.count, 0)) AS obliv,
-        SUM(IF(productcat.id IN ('74bf507d-a38e-ea92-6d81-626a9915ed7d') 
-            OR productcat.parent_category_id IN ('74bf507d-a38e-ea92-6d81-626a9915ed7d'), 
-            productsale.count, 0)) AS vaf,
-        SUM(IF(productcat.id IN ('c5d5d05c-a672-08bb-5f3b-59cb95299ef3','5ddd11ee-f0fe-39b3-8483-6613bc528163','aaa602e1-a42d-5972-7830-6736fd16cef1') 
-            OR productcat.parent_category_id IN ('c5d5d05c-a672-08bb-5f3b-59cb95299ef3','5ddd11ee-f0fe-39b3-8483-6613bc528163','aaa602e1-a42d-5972-7830-6736fd16cef1'), 
-            productsale.count, 0)) AS vetosh,
-        SUM(IF(productcat.id IN ('56e605af-31df-9377-5322-50f0124b66d1') 
-            OR productcat.parent_category_id IN ('56e605af-31df-9377-5322-50f0124b66d1'), 
-            productsale.count, 0)) AS ruk,
-        SUM(IF(productcat.id IN ('d2ca8d1d-e078-4276-c733-5488539d35e6','ad0cafb2-82e3-bd9f-7de8-643e911e5bff','2764ae01-c9f7-7b3e-78f4-643e91aafa06'), 
-            productsale.count, 0)) AS stretch,
-        SUM(IF(productcat.id IN ('e0fcedd5-485c-e14d-9a80-54885389b508') 
-            OR productcat.parent_category_id IN ('e0fcedd5-485c-e14d-9a80-54885389b508'), 
-            productsale.count, 0)) AS bugs,
-        SUM(IF(productcat.id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
-            OR productcat.parent_category_id IN ('5502e046-af74-daca-00cc-67f7c90060d0'), 
-            productsale.count, 0)) AS china,
+        SUM(CASE WHEN productcat.id IN ('42ac50da-efa0-9baa-51cc-50efc73a1fc6','3fb2004f-ffe1-67b3-d797-65aa1f509de3','8d432105-5ecf-3fc7-8242-62b32dc497e8','f35511c6-0a8c-6ece-02cb-62b32d67dbf4') 
+            OR productcat.parent_category_id IN ('42ac50da-efa0-9baa-51cc-50efc73a1fc6','3fb2004f-ffe1-67b3-d797-65aa1f509de3','8d432105-5ecf-3fc7-8242-62b32dc497e8','f35511c6-0a8c-6ece-02cb-62b32d67dbf4') 
+            THEN productsale.count ELSE 0 END) AS per,
+            
+        SUM(CASE WHEN productcat.id IN ('b7ece599-c211-52fd-2f30-5c21f1a851ca','bf4581e7-681a-75ce-2796-62baa764dcf7','d716ff1c-96e4-3451-f8a8-50efe14e851e') 
+            OR productcat.parent_category_id IN ('b7ece599-c211-52fd-2f30-5c21f1a851ca','bf4581e7-681a-75ce-2796-62baa764dcf7','d716ff1c-96e4-3451-f8a8-50efe14e851e') 
+            THEN productsale.count ELSE 0 END) AS obliv,
+            
+        SUM(CASE WHEN productcat.id IN ('74bf507d-a38e-ea92-6d81-626a9915ed7d') 
+            OR productcat.parent_category_id IN ('74bf507d-a38e-ea92-6d81-626a9915ed7d') 
+            THEN productsale.count ELSE 0 END) AS vaf,
+            
+        SUM(CASE WHEN productcat.id IN ('c5d5d05c-a672-08bb-5f3b-59cb95299ef3','5ddd11ee-f0fe-39b3-8483-6613bc528163','aaa602e1-a42d-5972-7830-6736fd16cef1') 
+            OR productcat.parent_category_id IN ('c5d5d05c-a672-08bb-5f3b-59cb95299ef3','5ddd11ee-f0fe-39b3-8483-6613bc528163','aaa602e1-a42d-5972-7830-6736fd16cef1') 
+            THEN productsale.count ELSE 0 END) AS vetosh,
+            
+        SUM(CASE WHEN productcat.id IN ('56e605af-31df-9377-5322-50f0124b66d1') 
+            OR productcat.parent_category_id IN ('56e605af-31df-9377-5322-50f0124b66d1') 
+            THEN productsale.count ELSE 0 END) AS ruk,
+            
+        SUM(CASE WHEN productcat.id IN ('d2ca8d1d-e078-4276-c733-5488539d35e6','ad0cafb2-82e3-bd9f-7de8-643e911e5bff','2764ae01-c9f7-7b3e-78f4-643e91aafa06') 
+            THEN productsale.count ELSE 0 END) AS stretch,
+            
+        SUM(CASE WHEN productcat.id IN ('e0fcedd5-485c-e14d-9a80-54885389b508') 
+            OR productcat.parent_category_id IN ('e0fcedd5-485c-e14d-9a80-54885389b508') 
+            THEN productsale.count ELSE 0 END) AS bugs,
+            
+        SUM(CASE WHEN productcat.id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
+            OR productcat.parent_category_id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
+            THEN productsale.count ELSE 0 END) AS china,
             
         -- New Metrics
         ROUND(SUM(productsale.amount), 0) AS allsum,
         
         -- Gross Profit (Margin): Amount - (Count * Cost)
-        ROUND(SUM(productsale.amount - (productsale.count * IFNULL(product.cost, 0))), 0) as gp,
+        ROUND(SUM(productsale.amount - (productsale.count * COALESCE(product.cost, 0))), 0) as gp,
         
         -- Resale (OwnProd = 0)
-        ROUND(SUM(IF(product.own_prod = 0, productsale.amount, 0)), 0) as resale,
+        ROUND(SUM(CASE WHEN product.own_prod = 0 THEN productsale.amount ELSE 0 END), 0) as resale,
         
         -- China SUM (Rubles)
-        ROUND(SUM(IF(productcat.id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
-            OR productcat.parent_category_id IN ('5502e046-af74-daca-00cc-67f7c90060d0'), 
-            productsale.amount, 0)), 0) AS china_sum
+        ROUND(SUM(CASE WHEN productcat.id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
+            OR productcat.parent_category_id IN ('5502e046-af74-daca-00cc-67f7c90060d0') 
+            THEN productsale.amount ELSE 0 END), 0) AS china_sum
             
     FROM opportunities
     INNER JOIN productsale ON productsale.opportunity_id = opportunities.id 

@@ -47,22 +47,12 @@ def debug_env():
     
     status = {
         "env_vars": {
-            "MYSQL_HOST": "SET" if os.getenv("MYSQL_HOST") else "MISSING",
-            "MYSQL_USER": "SET" if os.getenv("MYSQL_USER") else "MISSING",
             "DB_HOST": "SET" if os.getenv("DB_HOST") else "MISSING",
             "DB_USER": "SET" if os.getenv("DB_USER") else "MISSING"
         },
         "connections": {}
     }
     
-    # Test MySQL
-    try:
-        conn = pymysql.connect(**DB_CONFIG)
-        conn.close()
-        status["connections"]["mysql"] = "OK"
-    except Exception as e:
-        status["connections"]["mysql"] = f"ERROR: {str(e)}"
-
     # Test Postgres
     try:
         conn = psycopg2.connect(**POSTGRES_CONFIG)

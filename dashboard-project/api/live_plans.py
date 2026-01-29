@@ -1,7 +1,7 @@
-import pymysql
+import psycopg2
 from datetime import datetime
 import calendar
-from api.config_prod import DB_CONFIG, CORP_TEAM_ID
+from api.config_prod import POSTGRES_CONFIG, CORP_TEAM_ID
 
 # Copy from reports_3forms.py to ensure consistency
 REGION_TEAMS = {
@@ -50,7 +50,7 @@ REGION_DIST_MAP = {
 
 class LivePlanService:
     def __init__(self):
-        self.conn = pymysql.connect(**DB_CONFIG)
+        self.conn = psycopg2.connect(**POSTGRES_CONFIG)
 
     def __del__(self):
         self.conn.close()
