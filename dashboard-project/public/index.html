@@ -572,6 +572,10 @@
 
             try {
                 const res = await fetch(`/api/data?${params.toString()}`);
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Status ${res.status}: ${text}`);
+                }
                 const json = await res.json();
                 const d = json.data;
                 const prevD = json.comparison;
@@ -613,6 +617,7 @@
                 }
             } catch (e) {
                 console.error(e);
+                alert(`Ошибка загрузки данных: ${e.message}`);
             }
         }
 

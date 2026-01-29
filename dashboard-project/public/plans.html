@@ -708,7 +708,10 @@
 
             try {
                 const response = await fetch(`/api/plans?year=${year}&month=${month}`);
-                if (!response.ok) throw new Error('API Error');
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Status ${response.status}: ${text}`);
+                }
                 const result = await response.json();
                 renderMonthlyTable(result);
             } catch (err) {
@@ -749,7 +752,10 @@
 
             try {
                 const response = await fetch(`/api/daily-plans?date=${date}`);
-                if (!response.ok) throw new Error('API Error');
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Status ${response.status}: ${text}`);
+                }
                 const result = await response.json();
                 result.selectedDate = date;
                 renderDailyPlan(result);
@@ -844,7 +850,10 @@
 
             try {
                 const response = await fetch(`/api/excel-plans/territories?year=${year}&month=${month}`);
-                if (!response.ok) throw new Error('API Error');
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Status ${response.status}: ${text}`);
+                }
                 territoriesData = await response.json();
 
                 // Populate filter checkboxes and dropdowns
@@ -1081,7 +1090,10 @@
 
             try {
                 const response = await fetch(`/api/excel-plans/warehouses?year=${year}&month=${month}`);
-                if (!response.ok) throw new Error('API Error');
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Status ${response.status}: ${text}`);
+                }
                 warehousesData = await response.json();
 
                 // Populate filter checkboxes and dropdowns
@@ -1316,7 +1328,10 @@
 
             try {
                 const response = await fetch(`/api/hourly-analytics?date=${date}`);
-                if (!response.ok) throw new Error('API Error');
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Status ${response.status}: ${text}`);
+                }
                 const data = await response.json();
                 renderHourlyFact(data);
             } catch (err) {

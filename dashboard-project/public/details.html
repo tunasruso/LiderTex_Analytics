@@ -304,10 +304,14 @@
 
             try {
                 const res = await fetch(`/api/details?${params.toString()}`);
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Status ${res.status}: ${text}`);
+                }
                 const data = await res.json();
                 renderTable(data);
             } catch (e) {
-                document.getElementById('report-container').innerHTML = `<div class="p-10 text-red-400">Ошибка: ${e}</div>`;
+                document.getElementById('report-container').innerHTML = `<div class="p-10 text-red-400">Ошибка: ${e.message}</div>`;
             }
         }
 
