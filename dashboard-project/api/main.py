@@ -36,7 +36,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_headers=["*"],
 )
 
 security = HTTPBasic()
@@ -71,7 +70,6 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
-
 
 
 # --- HTML Serving (Protected) ---
@@ -122,7 +120,7 @@ def health_check():
 
 @app.get("/api/debug-env", dependencies=[Depends(verify_credentials)])
 def debug_env():
-    import pymysql
+    # import pymysql  <-- REMOVED
     import psycopg2
     from api.config_prod import DB_CONFIG, POSTGRES_CONFIG
     
