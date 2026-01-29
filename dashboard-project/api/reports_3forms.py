@@ -177,8 +177,8 @@ def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manage
     INNER JOIN raw.productcat ON productcat.id = product.category_id 
     LEFT JOIN raw.users ON users.id = opportunities.assigned_user_id
     LEFT JOIN raw.teams ON teams.id = users.team_id
-    WHERE productsale.deleted = 0
-    AND opportunities.deleted = 0
+    WHERE productsale.deleted IS FALSE
+    AND opportunities.deleted IS FALSE
     AND teams.id IN ({all_ids_str}) {filters_sql}
     AND opportunities.sales_stage IN ({STAGES_SQL})
     AND opportunities.id IN (

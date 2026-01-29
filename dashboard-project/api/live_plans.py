@@ -114,7 +114,7 @@ class LivePlanService:
         JOIN raw.users u ON u.id = p.assigned_user_id
         JOIN raw.gr_payrol_items pi ON pi.salary_id = p.id
         WHERE p.year = '{year}' AND p.month = '{month}'
-        AND p.deleted = 0
+        AND p.deleted IS FALSE
         GROUP BY u.team_id, pi.category_id
         """
         

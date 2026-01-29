@@ -35,17 +35,23 @@ def inspect_schema():
         for t in raw_tables:
             print(f" - raw.{t[0]}")
             
-        print("\n--- Columns in 'raw.product' ---")
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'product';")
+        print("\n--- Columns in 'raw.product' (Name, Type) ---")
+        cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'product';")
         cols = cursor.fetchall()
         for c in cols:
-            print(f" - {c[0]}")
+            print(f" - {c[0]}: {c[1]}")
 
-        print("\n--- Columns in 'raw.productsale' ---")
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'productsale';")
+        print("\n--- Columns in 'raw.productsale' (Name, Type) ---")
+        cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'productsale';")
         cols = cursor.fetchall()
         for c in cols:
-            print(f" - {c[0]}")
+            print(f" - {c[0]}: {c[1]}")
+
+        print("\n--- Columns in 'raw.opportunities' (Name, Type) ---")
+        cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'raw' AND table_name = 'opportunities';")
+        cols = cursor.fetchall()
+        for c in cols:
+            print(f" - {c[0]}: {c[1]}")
         for t in public_tables:
             print(f" - public.{t[0]}")
             

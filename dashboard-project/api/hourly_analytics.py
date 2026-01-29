@@ -50,8 +50,8 @@ def get_day_facts_with_timing(date_str: str) -> List[Dict]:
     LEFT JOIN raw.teams ON teams.id = users.team_id
     INNER JOIN raw.opportunities_audit ON opportunities_audit.parent_id = opportunities.id
     WHERE 
-        opportunities.deleted = 0
-        AND productsale.deleted = 0
+        opportunities.deleted IS FALSE
+        AND productsale.deleted IS FALSE
         AND opportunities_audit.date_created BETWEEN '{date_start}' AND '{date_end}'
         AND opportunities_audit.after_value_string IN ({target_stages_str})
         AND (opportunities_audit.before_value_string NOT IN ({target_stages_str}) OR opportunities_audit.before_value_string IS NULL)

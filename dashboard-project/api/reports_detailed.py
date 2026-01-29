@@ -37,7 +37,7 @@ def get_hierarchy():
     teams_map = {row['id']: row['name'] for row in cursor.fetchall()}
     
     # Select Users for these teams
-    cursor.execute(f"SELECT id, team_id, first_name, last_name FROM raw.users WHERE team_id IN ('{ids_str}') AND deleted=0 AND status='Active'")
+    cursor.execute(f"SELECT id, team_id, first_name, last_name FROM raw.users WHERE team_id IN ('{ids_str}') AND deleted IS FALSE AND status='Active'")
     users_rows = cursor.fetchall()
     conn.close()
     
@@ -73,8 +73,8 @@ def get_detailed_report(date, hour, region=None, team_id=None, manager_id=None):
     date_end = f"{date} {hour:02d}:00:00"
     
     where_clauses = [
-        "productsale.deleted = 0",
-        "opportunities.deleted = 0",
+        "productsale.deleted IS FALSE",
+        "opportunities.deleted IS FALSE",
         f"opportunities.sales_stage IN ({TARGET_STAGES_SQL})"
     ]
     

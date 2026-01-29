@@ -197,8 +197,8 @@ def get_actual_sales_ytd(date_obj: datetime):
     LEFT JOIN raw.users ON users.id = opportunities.assigned_user_id
     LEFT JOIN raw.teams ON teams.id = users.team_id
     WHERE 
-        opportunities.deleted = 0
-        AND productsale.deleted = 0
+        opportunities.deleted IS FALSE
+        AND productsale.deleted IS FALSE
         AND opportunities.date_closed BETWEEN '{month_start}' AND '{yesterday_end}'
         AND opportunities.sales_stage IN ({stages_str})
     """
