@@ -42,9 +42,29 @@ app.add_middleware(
 security = HTTPBasic()
 
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, "lider_viewer")
-    correct_password = secrets.compare_digest(credentials.password, "LiderReadOnly2026")
-    if not (correct_username and correct_password):
+    is_valid = False
+    try:
+        # Check DB
+        import psycopg2
+        from api.config_prod import POSTGRES_CONFIG
+        
+        conn = psycopg2.connect(**POSTGRES_CONFIG)
+        cur = conn.cursor()
+        cur.execute("SELECT password FROM raw.auth_users WHERE username = %s", (credentials.username,))
+        row = cur.fetchone()
+        conn.close()
+        
+        if row:
+            db_password = row[0]
+            # In a real app we would hash, but user asked for simple storage
+            # We use compare_digest to avoid timing attacks on string comparison
+            is_valid = secrets.compare_digest(credentials.password, db_password)
+    except Exception as e:
+        print(f"Auth DB Error: {e}")
+        # Fallback to hardcoded if DB fails? No, fail secure.
+        pass
+
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
