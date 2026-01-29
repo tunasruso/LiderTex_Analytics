@@ -39,7 +39,7 @@ def get_day_facts_with_timing(date_str: str) -> List[Dict]:
         productcat.id as cat_id,
         productcat.parent_category_id as parent_cat_id,
         productsale.amount as revenue,
-        productsale.amount - (productsale.count * COALESCE(product.cost, 0)) as gp,
+        productsale.amount as gp,
         productsale.count as count,
         MIN(opportunities_audit.date_created) as won_time
     FROM raw.opportunities

@@ -189,7 +189,7 @@ def get_actual_sales_ytd(date_obj: datetime):
         productcat.parent_category_id as parent_cat_id,
         productsale.amount as revenue,
         productsale.count as count,
-        productsale.amount - (productsale.count * COALESCE(product.price_in1, 0)) as gp
+        productsale.amount as gp
     FROM raw.opportunities
     INNER JOIN raw.productsale ON productsale.opportunity_id = opportunities.id
     INNER JOIN raw.product ON productsale.product_id = product.id 

@@ -161,7 +161,7 @@ def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manage
         ROUND(SUM(productsale.amount), 0) AS allsum,
         
         -- Gross Profit (Margin): Amount - (Count * Cost)
-        ROUND(SUM(productsale.amount - (productsale.count * COALESCE(product.cost, 0))), 0) as gp,
+        ROUND(SUM(productsale.amount), 0) as gp,
         
         -- Resale (OwnProd = 0)
         ROUND(SUM(CASE WHEN product.own_prod = 0 THEN productsale.amount ELSE 0 END), 0) as resale,

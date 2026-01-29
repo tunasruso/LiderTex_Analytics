@@ -129,7 +129,7 @@ def get_detailed_report(date, hour, region=None, team_id=None, manager_id=None):
         SUM(CASE WHEN productcat.id IN ('5502e046-af74-daca-00cc-67f7c90060d0') OR productcat.parent_category_id IN ('5502e046-af74-daca-00cc-67f7c90060d0') THEN productsale.amount ELSE 0 END) AS china_rub,
         SUM(CASE WHEN product.own_prod = 0 THEN productsale.amount ELSE 0 END) as resale_rub,
         SUM(productsale.amount) AS allsum,
-        SUM(productsale.amount - (productsale.count * COALESCE(product.cost, 0))) as gp
+        SUM(productsale.amount) as gp
         
     FROM raw.opportunities
     INNER JOIN raw.productsale ON productsale.opportunity_id = opportunities.id 
