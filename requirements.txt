@@ -3,3 +3,6 @@ uvicorn
 pymysql
 jinja2
 python-multipart
+psycopg2-binary
+pandas
+openpyxl
