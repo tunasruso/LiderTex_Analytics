@@ -403,16 +403,25 @@ def get_daily_plans_breakdown(date_str):
                 result['daily_totals'][region][f"{cat}_gp"] = d_gp
 
         # [FIX] Monthly Plan Total according to user = Own Prod + Resale
+        # Revenue is explicitly defined in Excel for these aggregates
         reg_total_plan = p_data['categories'].get('own_prod', 0) + p_data['categories'].get('resale', 0)
+        
+        # [FIX] GP is NOT defined for 'own_prod'/'resale' aggregates in Excel, so we sum the components
+        reg_total_plan_gp = p_data['categories'].get('own_prod_gp', 0) + p_data['categories'].get('resale_gp', 0) # Attempt direct first
+        if reg_total_plan_gp == 0:
+             # Fallback: Sum all component categories for the Plan GP
+             # We use the 'gp' dict which we probably should populate in get_monthly_plans or just iterate
+             # Actually, let's just sum all values in p_data['categories_gp'].values()
+             reg_total_plan_gp = sum(p_data.get('categories_gp', {}).values())
+
         reg_total_fact = r_facts.get('own_prod', {}).get('revenue', 0) + r_facts.get('resale', {}).get('revenue', 0)
         reg_total_fact_gp = r_facts.get('own_prod', {}).get('gp', 0) + r_facts.get('resale', {}).get('gp', 0)
         
         # Calculate Daily Target for this combined Total
         reg_daily_rev_target = calculate_daily_target(reg_total_plan, reg_total_fact, remaining_days)
-        # Note: GP Plan is usually not aggregated as 'own_prod' in excel, we might need a fallback.
-        # But we can sum up category GP plans.
-        cats_gp_plan = p_data['categories_gp'].get('own_prod', 0) + p_data['categories_gp'].get('resale', 0)
-        reg_daily_gp_target = calculate_daily_target(cats_gp_plan, reg_total_fact_gp, remaining_days)
+        
+        # Use the summed GP Plan
+        reg_daily_gp_target = calculate_daily_target(reg_total_plan_gp, reg_total_fact_gp, remaining_days)
 
         # Set Regional Totals
         result['daily_totals'][region]['revenue'] = reg_daily_rev_target
