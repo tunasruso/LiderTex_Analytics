@@ -7,22 +7,46 @@ logger = logging.getLogger(__name__)
 import pymysql.cursors
 
 class CRMExtractor(BaseExtractor):
-    def extract(self, table_name, last_sync=None, batch_size=5000):
-        logger.info(f"Extracting {table_name}, last_sync={last_sync}")
+    def extract(self, table_name, last_sync=None, batch_size=5000, incremental_col=None):
+        """
+        Extract data from table.
         
-        # Determine delta field
-        date_field = 'date_modified'
-        if table_name == 'opportunities_audit':
-            date_field = 'date_created'
+        Args:
+            table_name: Name of the table to extract
+            last_sync: Last sync timestamp (None for full load)
+            batch_size: Number of rows per batch
+            incremental_col: Column to use for incremental sync (e.g., 'date_modified', 'date_entered')
+                            If None, does full extract.
+        """
+        logger.info(f"Extracting {table_name}, last_sync={last_sync}, incremental_col={incremental_col}")
         
-        # Construct query
-        if last_sync:
-            sql = f"SELECT * FROM {table_name} WHERE {date_field} >= %s"
-            params = (last_sync,)
+        # If no incremental column specified, do full load
+        if incremental_col is None:
+            logger.info(f"Full extract for {table_name} (no incremental column)")
+            sql = f"SELECT * FROM {table_name}"
+            params = ()
         else:
-            from config.settings import SYNC_START_DATE
-            sql = f"SELECT * FROM {table_name} WHERE {date_field} >= %s"
-            params = (SYNC_START_DATE,)
+            # Verify if column exists in MySQL
+            has_date_field = True
+            try:
+                with self.source_conn.cursor() as check_cur:
+                    check_cur.execute(f"SHOW COLUMNS FROM {table_name} LIKE %s", (incremental_col,))
+                    if not check_cur.fetchone():
+                        has_date_field = False
+            except:
+                has_date_field = False
+
+            if not has_date_field:
+                logger.warning(f"Column '{incremental_col}' not found in {table_name}. Doing full extract.")
+                sql = f"SELECT * FROM {table_name}"
+                params = ()
+            elif last_sync:
+                sql = f"SELECT * FROM {table_name} WHERE {incremental_col} >= %s"
+                params = (last_sync,)
+            else:
+                from config.settings import SYNC_START_DATE
+                sql = f"SELECT * FROM {table_name} WHERE {incremental_col} >= %s"
+                params = (SYNC_START_DATE,)
 
         # Use SSDictCursor for streaming large datasets without OOM
         try:

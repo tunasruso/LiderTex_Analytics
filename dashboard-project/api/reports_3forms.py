@@ -184,13 +184,7 @@ def get_report_form1(target_date, hour_cutoff, region=None, team_id=None, manage
     AND opportunities.deleted IS FALSE
     AND teams.id IN ({all_ids_str}) {filters_sql}
     AND opportunities.sales_stage IN ({STAGES_SQL})
-    AND opportunities.id IN (
-        SELECT parent_id FROM raw.opportunities_audit 
-        WHERE opportunities_audit.parent_id = opportunities.id 
-        AND opportunities_audit.date_created BETWEEN '{date_start}' AND '{date_end}'
-        AND opportunities_audit.after_value_string IN ({STAGES_SQL})
-        AND (opportunities_audit.before_value_string NOT IN ({STAGES_SQL}) OR opportunities_audit.before_value_string IS NULL)
-    )
+    AND opportunities.date_closed BETWEEN '{date_start}' AND '{date_end}'
     GROUP BY region_name
     '''
     

@@ -104,49 +104,37 @@ class LivePlanService:
         return total_work_days, remaining_work_days
 
     def get_monthly_plans(self, year, month):
-        """Fetches plans for all users for specific month, aggregated by Region"""
-        query = f"""
-        SELECT 
-            u.team_id,
-            pi.category_id, 
-            SUM(pi.plan) as total_plan
-        FROM raw.gr_payrol p
-        JOIN raw.users u ON u.id = p.assigned_user_id
-        JOIN raw.gr_payrol_items pi ON pi.salary_id = p.id
-        WHERE p.year = '{year}' AND p.month = '{month}'
-        AND p.deleted IS FALSE
-        GROUP BY u.team_id, pi.category_id
-        """
+        """Fetches plans from the trusted daily_plans API (Postgres Mart)"""
+        import api.daily_plans as daily_plans_api
         
-        plans_by_region = {}
+        # Fetch from the trusted source
+        raw_plans = daily_plans_api.get_monthly_plans(year, month)
         
-        with self.conn.cursor() as cursor:
-            cursor.execute(query)
-            rows = cursor.fetchall()
+        # Flatten structure for LivePlanService compatibility
+        flat_plans = {}
+        
+        for region, p_data in raw_plans.items():
+            flat_plans[region] = {}
             
-            for team_id, category, value in rows:
-                region = self.get_team_region(team_id)
-                if region == 'Other': continue
+            # 1. Base Metrics (Revenue & GP)
+            # 'total_target' in daily_plans is Own+Resale Revenue
+            flat_plans[region]['revenue'] = p_data.get('total_target', 0)
+            flat_plans[region]['gp'] = p_data.get('total_target_gp', 0)
+            
+            # 2. Categories (Revenue vs Quantity)
+            cats_rev = p_data.get('categories', {})
+            cats_qty = p_data.get('categories_qty', {})
+            
+            # QTY-based metrics in Report Form 1
+            qty_keys = ['per', 'obliv', 'vaf', 'vetosh', 'ruk', 'stretch', 'bugs', 'china']
+            for k in qty_keys:
+                flat_plans[region][k] = cats_qty.get(k, 0)
                 
-                if region not in plans_by_region:
-                    plans_by_region[region] = {}
-                
-                # Normalize keys to match dashboard expectation
-                key = category
-                if category == 'amount': key = 'revenue'
-                elif category == 'dirty_plan': key = 'gp'
-                # Add mappings for others if needed strictly, otherwise keep as is
-                # The dashboard uses: revenue, gp, resale, per, obliv, vaf, vetosh...
-                # Check DB keys: per_retail_sum, etc.
-                
-                if category == 'per_retail_sum': key = 'per'
-                elif category == 'obliv': key = 'obliv' # Same
-                elif category == 'vetosh': key = 'vetosh' # Same
-                # ... Map others strictly if they differ
-                
-                plans_by_region[region][key] = plans_by_region[region].get(key, 0) + int(value)
-
-        return plans_by_region
+            # Revenue-based metrics in Report Form 1
+            flat_plans[region]['resale'] = cats_rev.get('resale', 0)
+            flat_plans[region]['china_sum'] = cats_rev.get('china', 0)
+            
+        return flat_plans
 
     def calculate_live_metrics(self, region_data, plans, remaining_days, ytd_fact_yesterday, current_hour):
         """

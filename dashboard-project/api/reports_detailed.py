@@ -81,17 +81,9 @@ def get_detailed_report(date, hour, region=None, team_id=None, manager_id=None):
         f"opportunities.sales_stage IN ({TARGET_STAGES_SQL})"
     ]
     
-    # Audit Logic (Time Travel)
-    audit_subquery = f"""
-    opportunities.id IN (
-        SELECT parent_id FROM raw.opportunities_audit 
-        WHERE opportunities_audit.parent_id = opportunities.id 
-        AND opportunities_audit.date_created BETWEEN '{date_start}' AND '{date_end}'
-        AND opportunities_audit.after_value_string IN ({TARGET_STAGES_SQL})
-        AND (opportunities_audit.before_value_string NOT IN ({TARGET_STAGES_SQL}) OR opportunities_audit.before_value_string IS NULL)
-    )
-    """
-    where_clauses.append(audit_subquery)
+    # Audit Logic removed due to missing data. 
+    # Use standard date_closed filtering like daily_plans.py
+    where_clauses.append(f"opportunities.date_closed BETWEEN '{date_start}' AND '{date_end}'")
     
     # Filters
     if manager_id:

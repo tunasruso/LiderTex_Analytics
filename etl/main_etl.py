@@ -46,6 +46,22 @@ SCHEMA_COLUMNS = {
     'gr_workdays': ['year', 'month', 'days']
 }
 
+# Per-table incremental sync configuration
+# 'incremental_col': Column used for delta detection (date_modified, date_entered, id, or None for full load)
+# 'full_load': If True, always do full extract (no incremental)
+TABLE_CONFIG = {
+    'productsale':        {'incremental_col': 'date_modified'},
+    'teams':              {'incremental_col': 'date_modified'},
+    'users':              {'incremental_col': 'date_modified'},
+    'productcat':         {'incremental_col': 'date_modified'},
+    'product':            {'incremental_col': 'date_modified'},
+    'opportunities':      {'incremental_col': 'date_modified'},
+    'opportunities_audit':{'incremental_col': 'date_created'},
+    'gr_payrol':          {'incremental_col': 'date_modified'},
+    'gr_payrol_items':    {'incremental_col': None, 'full_load': True},  # No date column
+    'gr_workdays':        {'incremental_col': None, 'full_load': True},  # No date column
+}
+
 def filter_columns(table, data):
     """Retain only columns that exist in the target schema."""
     if table not in SCHEMA_COLUMNS:
@@ -77,12 +93,17 @@ def run_etl():
                 last_sync = state_store.get_last_sync(table)
                 logger.info(f"Processing {table}. Last Sync: {last_sync}")
 
-                # 2. Extract Data (Generator or List)
-                data_iterator = extractor.extract(table, last_sync)
+                # 2. Get table config
+                tbl_cfg = TABLE_CONFIG.get(table, {})
+                incremental_col = tbl_cfg.get('incremental_col', 'date_modified')
+                is_full_load = tbl_cfg.get('full_load', False)
+                
+                # 3. Extract Data (pass incremental_col to extractor)
+                effective_last_sync = None if is_full_load else last_sync
+                data_iterator = extractor.extract(table, effective_last_sync, incremental_col=incremental_col)
                 
                 # We need to track the max_date across all batches to update state at the end
                 max_date_seen = None
-                date_field = 'date_created' if table == 'opportunities_audit' else 'date_modified'
                 total_loaded = 0
                 
                 # Check if it's a generator (streaming) or list
@@ -96,12 +117,13 @@ def run_etl():
                          loader.load(table, batch)
                          total_loaded += len(batch)
 
-                         # Track max date
-                         timestamps = [row[date_field] for row in batch if row.get(date_field)]
-                         if timestamps:
-                             batch_max = max(timestamps)
-                             if not max_date_seen or batch_max > max_date_seen:
-                                 max_date_seen = batch_max
+                         # Track max date (only if incremental_col exists)
+                         if incremental_col:
+                             timestamps = [row[incremental_col] for row in batch if row.get(incremental_col)]
+                             if timestamps:
+                                 batch_max = max(timestamps)
+                                 if not max_date_seen or batch_max > max_date_seen:
+                                     max_date_seen = batch_max
                 else:
                     # Legacy behavior: Single huge list
                     batch = data_iterator
@@ -110,9 +132,10 @@ def run_etl():
                         loader.load(table, batch)
                         total_loaded += len(batch)
                         
-                        timestamps = [row[date_field] for row in batch if row.get(date_field)]
-                        if timestamps:
-                             max_date_seen = max(timestamps)
+                        if incremental_col:
+                            timestamps = [row[incremental_col] for row in batch if row.get(incremental_col)]
+                            if timestamps:
+                                 max_date_seen = max(timestamps)
 
                 # 4. Update State (Once per table)
                 if total_loaded > 0:
